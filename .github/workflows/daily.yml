@@ -1,0 +1,51 @@
+# ─────────────────────────────────────────────
+# daily.yml
+# 매일 오전 8시(한국시간)에 자동으로 크롤링 + 분석 실행
+# 한국시간 오전 8시 = UTC 오전 23시 (전날)
+# ─────────────────────────────────────────────
+
+name: 매일 보험 뉴스 수집
+
+on:
+  schedule:
+    - cron: '0 23 * * *'   # 매일 UTC 23시 = 한국시간 오전 8시
+  workflow_dispatch:         # 수동으로도 실행 가능
+
+jobs:
+  crawl-and-analyze:
+    runs-on: ubuntu-latest   # GitHub 서버에서 실행
+
+    steps:
+      # 1. 코드 가져오기
+      - name: 코드 체크아웃
+        uses: actions/checkout@v3
+
+      # 2. Python 설치
+      - name: Python 설치
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      # 3. 필요한 패키지 설치
+      - name: 패키지 설치
+        run: |
+          pip install requests beautifulsoup4 anthropic lxml schedule
+
+      # 4. 크롤링 실행
+      - name: 뉴스 크롤링
+        run: python crawler.py
+
+      # 5. AI 분석 실행
+      - name: AI 분석
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python analyzer.py
+
+      # 6. 결과 파일 GitHub에 저장
+      - name: 결과 저장
+        run: |
+          git config --global user.email "kimgunkyu91@gmail.com"
+          git config --global user.name "kimgunkyu"
+          git add data/
+          git diff --staged --quiet || git commit -m "자동 업데이트: $(date +'%Y-%m-%d')"
+          git push
