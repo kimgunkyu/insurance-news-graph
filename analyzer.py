@@ -210,6 +210,9 @@ def analyze_articles(articles):
 
 def save_analyzed_data(data):
     """분석된 데이터를 JSON 파일로 저장"""
+    # data 폴더 없으면 자동 생성
+    os.makedirs("data", exist_ok=True)
+
     today = datetime.now().strftime("%Y_%m_%d")
     filename = f"data/analyzed_{today}.json"
 

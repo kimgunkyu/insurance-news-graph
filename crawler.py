@@ -166,6 +166,10 @@ def crawl_all():
 
     print(f"\n✅ 총 {len(all_articles)}개 기사 수집 완료!")
 
+
+    # data 폴더 없으면 자동 생성
+    os.makedirs("data", exist_ok=True)
+
     # 오늘 날짜로 JSON 저장
     today = datetime.now().strftime("%Y_%m_%d")
     filename = f"data/articles_{today}.json"
