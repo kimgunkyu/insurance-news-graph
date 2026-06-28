@@ -16,17 +16,12 @@ import os                       # 폴더 생성
 INSURANCE_MEDIA = [
     {
         "name": "보험저널",
-        "url": "https://news.google.com/rss/search?q=site:insjournal.co.kr+보험&hl=ko&gl=KR&ceid=KR:ko",
+        "url": "https://news.google.com/rss/search?q=site:insjournal.co.kr+보험&hl=ko&gl=KR&ceid=KR:ko&sort=date",
     },
     {
         "name": "뉴스포트",
-        "url": "https://news.google.com/rss/search?q=site:newsport.co.kr+보험&hl=ko&gl=KR&ceid=KR:ko",
+        "url": "https://news.google.com/rss/search?q=site:newsport.co.kr+보험&hl=ko&gl=KR&ceid=KR:ko&sort=date",
     },
-    # 나중에 추가할 언론사
-    # {
-    #     "name": "보험신보",
-    #     "url": "https://news.google.com/rss/search?q=site:insnews.co.kr+보험&hl=ko&gl=KR&ceid=KR:ko",
-    # },
 ]
 
 # ── 언론사별 최대 기사 수 ──────────────────────

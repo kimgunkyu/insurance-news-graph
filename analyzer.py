@@ -15,7 +15,7 @@ ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 # ── 한 번에 분석할 기사 수 ───────────────────
-BATCH_SIZE = 15
+BATCH_SIZE = 8
 
 
 def analyze_batch(articles, batch_num, total_batches):
