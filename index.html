@@ -173,7 +173,14 @@ async function loadData() {
 
   try {
     // main.py 서버에서 분석된 뉴스 데이터 가져오기
-    const res = await fetch('http://localhost:8000/api/news');
+    // GitHub에서 최신 분석 파일 가져오기
+    const baseUrl = 'https://raw.githubusercontent.com/kimgunkyu/insurance-news-graph/master/data/';
+    
+    // 오늘 날짜로 파일명 생성
+    const today = new Date();
+    const filename = `analyzed_${today.getFullYear()}_${String(today.getMonth()+1).padStart(2,'0')}_${String(today.getDate()).padStart(2,'0')}.json`;
+    
+    const res = await fetch(baseUrl + filename);
     const data = await res.json();
 
     if (!data.articles || data.articles.length === 0) {
