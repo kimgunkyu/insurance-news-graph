@@ -19,8 +19,8 @@ INSURANCE_MEDIA = [
         "url": "https://news.google.com/rss/search?q=site:insjournal.co.kr+보험&hl=ko&gl=KR&ceid=KR:ko&sort=date",
     },
     {
-        "name": "뉴스포트",
-        "url": "https://news.google.com/rss/search?q=site:newsport.co.kr+보험&hl=ko&gl=KR&ceid=KR:ko&sort=date",
+        "name": "한국보험신문",
+        "url": "https://news.google.com/rss/search?q=site:insnews.co.kr+보험&hl=ko&gl=KR&ceid=KR:ko&sort=date",
     },
 ]
 
