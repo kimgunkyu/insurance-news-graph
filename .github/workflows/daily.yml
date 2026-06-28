@@ -46,6 +46,6 @@ jobs:
         run: |
           git config --global user.email "kimgunkyu91@gmail.com"
           git config --global user.name "kimgunkyu"
-          git add data/
+          git add -f data/
           git diff --staged --quiet || git commit -m "자동 업데이트: $(date +'%Y-%m-%d')"
           git push
