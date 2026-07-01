@@ -438,27 +438,45 @@ async def add_relationship(
 def test_direct_access():
     """
     [테스트용 임시 엔드포인트 - 확인 후 삭제 예정]
-    Render 서버에서 보험저널 사이트에 직접 접근 가능한지 확인
+    Render 서버에서 보험저널 여러 탭에 직접 접근 + 파싱 테스트
     """
-    test_url = "https://www.insjournal.co.kr/news/articleList.html?sc_sub_section_code=S2N1&view_type=sm"
+    from bs4 import BeautifulSoup
+
+    sections = [
+        {"name": "정책", "url": "https://www.insjournal.co.kr/news/articleList.html?sc_sub_section_code=S2N1&view_type=sm"},
+        {"name": "손보", "url": "https://www.insjournal.co.kr/news/articleList.html?sc_sub_section_code=S2N3&view_type=sm"},
+        {"name": "GA", "url": "https://www.insjournal.co.kr/news/articleList.html?sc_sub_section_code=S2N16&view_type=sm"},
+        {"name": "상품", "url": "https://www.insjournal.co.kr/news/articleList.html?sc_sub_section_code=S2N17&view_type=sm"},
+        {"name": "경제종합", "url": "https://www.insjournal.co.kr/news/articleList.html?sc_sub_section_code=S2N20&view_type=sm"},
+    ]
+
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     }
 
-    try:
-        res = requests.get(test_url, headers=headers, timeout=10)
-        return {
-            "status_code": res.status_code,
-            "success": res.status_code == 200,
-            "content_length": len(res.text),
-            "snippet": res.text[:500]
-        }
-    except Exception as e:
-        return {
-            "status_code": None,
-            "success": False,
-            "error": str(e)
-        }
+    results = {}
+
+    for section in sections:
+        try:
+            res = requests.get(section["url"], headers=headers, timeout=10)
+            soup = BeautifulSoup(res.text, 'html.parser')
+            items = soup.select('ul.type1 li')[:5]  # 상위 5개만 테스트
+
+            titles = []
+            for item in items:
+                title_tag = item.select_one('.titles')
+                if title_tag:
+                    titles.append(title_tag.get_text(strip=True))
+
+            results[section["name"]] = {
+                "status_code": res.status_code,
+                "found_items": len(items),
+                "titles": titles
+            }
+        except Exception as e:
+            results[section["name"]] = {"error": str(e)}
+
+    return results
 
 # ── HTML 파일 서빙 ────────────────────────────
 @app.get("/")
