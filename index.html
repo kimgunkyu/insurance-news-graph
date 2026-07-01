@@ -7,8 +7,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <style>
   :root {
-    --bg: #0d1117; --surface: #161b22; --border: #21262d;
-    --text: #e6edf3; --text-muted: #7d8590; --accent: #2d6be4;
+    --bg: #ffffff; --surface: #f6f8fa; --border: #d0d7de;
+    --text: #1f2328; --text-muted: #6e7781; --accent: #2d6be4;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--bg); color: var(--text); font-family: 'Apple SD Gothic Neo', -apple-system, sans-serif; height: 100vh; display: flex; overflow: hidden; }
@@ -21,30 +21,30 @@
 
   /* 기간 선택 */
   #period-bar { padding: 10px 12px; border-bottom: 1px solid var(--border); }
-  #period-select { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 12px; padding: 7px 9px; outline: none; cursor: pointer; }
+  #period-select { width: 100%; background: #fff; border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 12px; padding: 7px 9px; outline: none; cursor: pointer; }
   #period-select:focus { border-color: var(--accent); }
 
   /* 검색창 */
   #search-bar { padding: 10px 12px; border-bottom: 1px solid var(--border); display: flex; gap: 6px; }
-  #search-input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 12px; padding: 6px 9px; outline: none; }
+  #search-input { flex: 1; background: #fff; border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 12px; padding: 6px 9px; outline: none; }
   #search-input:focus { border-color: var(--accent); }
   #search-input::placeholder { color: var(--text-muted); }
   #search-btn { background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
 
   /* 새로고침 버튼 */
-  #refresh-btn { margin: 8px 12px; background: transparent; border: 1px solid var(--accent); color: var(--accent); border-radius: 6px; padding: 8px 12px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; }
-  #refresh-btn:hover { background: rgba(45,107,228,0.15); }
+  #refresh-btn { margin: 8px 12px; background: #fff; border: 1px solid var(--accent); color: var(--accent); border-radius: 6px; padding: 8px 12px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+  #refresh-btn:hover { background: rgba(45,107,228,0.08); }
   #refresh-btn.loading { opacity: 0.6; cursor: not-allowed; }
   .spinner { width: 11px; height: 11px; border: 2px solid transparent; border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; display: none; }
   #refresh-btn.loading .spinner { display: block; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
   /* 소식 추가 버튼 */
-  #add-news-btn { margin: 8px 12px 0; background: transparent; border: 1px solid #3fb950; color: #3fb950; border-radius: 6px; padding: 8px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
+  #add-news-btn { margin: 8px 12px 0; background: #fff; border: 1px solid #2da44e; color: #2da44e; border-radius: 6px; padding: 8px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
 
   /* 소식 추가 모달 */
-  #add-news-modal { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:200; align-items:center; justify-content:center; }
-  #add-news-modal .modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; width: 420px; max-width: 90%; }
+  #add-news-modal { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.35); z-index:200; align-items:center; justify-content:center; }
+  #add-news-modal .modal-box { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 20px; width: 420px; max-width: 90%; box-shadow: 0 12px 32px rgba(0,0,0,0.15); }
   .input-tab { flex:1; padding:6px; font-size:12px; border-radius:6px; cursor:pointer; }
 
   /* 기사 목록 */
@@ -52,44 +52,44 @@
   #article-list::-webkit-scrollbar { width: 3px; }
   #article-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
   .article-item { padding: 9px 12px; cursor: pointer; border-left: 3px solid transparent; transition: background 0.12s; }
-  .article-item:hover { background: rgba(255,255,255,0.04); }
-  .article-item.active { background: rgba(45,107,228,0.1); border-left-color: var(--accent); }
+  .article-item:hover { background: rgba(0,0,0,0.03); }
+  .article-item.active { background: rgba(45,107,228,0.08); border-left-color: var(--accent); }
   .article-item .tag { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 5px; border-radius: 3px; margin-bottom: 4px; }
   .article-item .title { font-size: 12px; font-weight: 500; line-height: 1.4; }
   .article-item .meta { font-size: 10px; color: var(--text-muted); margin-top: 3px; }
 
   /* 그래프 영역 */
-  #main { flex: 1; position: relative; overflow: hidden; }
+  #main { flex: 1; position: relative; overflow: hidden; background: #fff; }
   #graph-canvas { width: 100%; height: 100%; }
 
   /* 줌 버튼 */
   #graph-controls { position: absolute; top: 14px; left: 14px; display: flex; gap: 6px; }
-  .ctrl-btn { background: rgba(22,27,34,0.92); border: 1px solid var(--border); color: var(--text-muted); border-radius: 6px; width: 30px; height: 30px; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .ctrl-btn { background: rgba(255,255,255,0.95); border: 1px solid var(--border); color: var(--text-muted); border-radius: 6px; width: 30px; height: 30px; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
   .ctrl-btn:hover { color: var(--text); border-color: var(--accent); }
 
   /* 사이드바 토글 버튼 (모바일 대응) */
-  #sidebar-toggle { position: absolute; top: 14px; left: 14px; z-index: 30; background: rgba(22,27,34,0.92); border: 1px solid var(--border); color: var(--text); border-radius: 6px; width: 34px; height: 34px; font-size: 16px; cursor: pointer; display: none; align-items: center; justify-content: center; }
+  #sidebar-toggle { position: absolute; top: 14px; left: 14px; z-index: 30; background: rgba(255,255,255,0.95); border: 1px solid var(--border); color: var(--text); border-radius: 6px; width: 34px; height: 34px; font-size: 16px; cursor: pointer; display: none; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
 
   /* 범례 */
-  #legend { position: absolute; top: 14px; right: 14px; background: rgba(22,27,34,0.92); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 11px; }
+  #legend { position: absolute; top: 14px; right: 14px; background: rgba(255,255,255,0.97); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 11px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
   .legend-title { color: var(--text-muted); font-weight: 600; margin-bottom: 6px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
   .legend-item { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; color: var(--text-muted); }
   .legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 
   /* 툴팁 */
-  #tooltip { position: absolute; pointer-events: none; background: rgba(22,27,34,0.97); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font-size: 12px; max-width: 240px; display: none; z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+  #tooltip { position: absolute; pointer-events: none; background: rgba(255,255,255,0.98); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font-size: 12px; max-width: 240px; display: none; z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
   #tooltip .tt-title { font-weight: 600; margin-bottom: 3px; }
   #tooltip .tt-meta { color: var(--text-muted); font-size: 10px; }
 
   /* 상태바 */
-  #status { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); background: rgba(22,27,34,0.9); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 11px; color: var(--text-muted); pointer-events: none; }
+  #status { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); background: rgba(255,255,255,0.95); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 11px; color: var(--text-muted); pointer-events: none; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
 
   /* 빈 상태 */
   #empty-state { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; color: var(--text-muted); pointer-events: none; display: none; }
-  #empty-state .icon { font-size: 44px; margin-bottom: 10px; opacity: 0.4; }
+  #empty-state .icon { font-size: 44px; margin-bottom: 10px; opacity: 0.3; }
 
   /* 상세 패널 (오른쪽) */
-  #detail-panel { width: 320px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.25s ease; position: absolute; right: 0; top: 0; bottom: 0; z-index: 20; }
+  #detail-panel { width: 320px; background: #fff; border-left: 1px solid var(--border); display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.25s ease; position: absolute; right: 0; top: 0; bottom: 0; z-index: 20; box-shadow: -4px 0 16px rgba(0,0,0,0.06); }
   #detail-panel.open { transform: translateX(0); }
   #detail-close { position: absolute; top: 10px; right: 10px; background: none; border: none; color: var(--text-muted); font-size: 16px; cursor: pointer; padding: 4px 6px; }
   #detail-content { padding: 18px 16px; flex: 1; overflow-y: auto; }
@@ -99,8 +99,8 @@
   #detail-title { font-size: 14px; font-weight: 700; line-height: 1.5; margin-bottom: 6px; }
   #detail-meta { font-size: 11px; color: var(--text-muted); margin-bottom: 14px; }
   .section-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 7px; margin-top: 14px; }
-  #detail-summary { font-size: 12px; line-height: 1.7; background: rgba(0,0,0,0.2); border-radius: 7px; padding: 11px 12px; border-left: 2px solid var(--accent); }
-  .rel-item { padding: 8px 10px; background: rgba(0,0,0,0.2); border-radius: 6px; margin-bottom: 5px; cursor: pointer; border: 1px solid transparent; transition: border-color 0.15s; }
+  #detail-summary { font-size: 12px; line-height: 1.7; background: var(--surface); border-radius: 7px; padding: 11px 12px; border-left: 2px solid var(--accent); }
+  .rel-item { padding: 8px 10px; background: var(--surface); border-radius: 6px; margin-bottom: 5px; cursor: pointer; border: 1px solid transparent; transition: border-color 0.15s; }
   .rel-item:hover { border-color: var(--accent); }
   .rel-label { font-size: 10px; color: var(--accent); font-weight: 600; margin-bottom: 2px; }
   .rel-name { font-size: 11px; }
@@ -109,7 +109,7 @@
 
   /* 모바일 대응 */
   @media (max-width: 768px) {
-    #sidebar { position: absolute; top: 0; bottom: 0; left: 0; width: 85%; max-width: 320px; z-index: 25; transform: translateX(-100%); transition: transform 0.25s ease; }
+    #sidebar { position: absolute; top: 0; bottom: 0; left: 0; width: 85%; max-width: 320px; z-index: 25; transform: translateX(-100%); transition: transform 0.25s ease; box-shadow: 4px 0 16px rgba(0,0,0,0.1); }
     #sidebar.open { transform: translateX(0); }
     #sidebar-toggle { display: flex; }
     #detail-panel { width: 90%; }
@@ -159,7 +159,7 @@
       </div>
 
       <div id="text-input-area">
-        <textarea id="news-text-input" placeholder="기사 내용이나 소식을 붙여넣으세요..." style="width:100%; height:140px; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:12px; padding:10px; resize:vertical; outline:none;"></textarea>
+        <textarea id="news-text-input" placeholder="기사 내용이나 소식을 붙여넣으세요..." style="width:100%; height:140px; background:var(--surface); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:12px; padding:10px; resize:vertical; outline:none;"></textarea>
       </div>
 
       <div id="image-input-area" style="display:none;">
@@ -222,124 +222,41 @@ const SERVER_URL = 'https://insurance-news-graph.onrender.com';
 
 // ── 카테고리별 색상 ──────────────────────────
 const COLORS = {
-  '규제/법률': '#58a6ff',
-  '손해율': '#3fb950',
-  '상품/보험료/가격': '#ffa657',
-  '전속/GA/채널': '#d2a8ff',
-  '투자/재무/IFRS': '#79c0ff',
-  '건전성/K-ICS': '#f78166',
-  '보험시장': '#56d364',
-  '기타': '#8b949e',
+  '규제/법률': '#1f6feb',
+  '손해율': '#1a7f37',
+  '상품/보험료/가격': '#bc4c00',
+  '전속/GA/채널': '#8250df',
+  '투자/재무/IFRS': '#0969da',
+  '건전성/K-ICS': '#cf222e',
+  '보험시장': '#2da44e',
+  '기타': '#6e7781',
 };
 
 // ── 앱 상태 ──────────────────────────────────
-const state = { nodes: [], links: [], selectedId: null, svg: null, g: null, zoom: null };
+const state = { allNodes: [], allLinks: [], nodes: [], links: [], selectedId: null, svg: null, g: null, zoom: null };
 
-// ── 날짜 유틸 ────────────────────────────────
-function formatDate(d) {
-  return `${d.getFullYear()}_${String(d.getMonth()+1).padStart(2,'0')}_${String(d.getDate()).padStart(2,'0')}`;
-}
-
-// GitHub에서 존재하는 analyzed 파일 날짜 목록 가져오기
-async function getAvailableDates() {
-  try {
-    const res = await fetch(`${SERVER_URL}/api/dates?t=${Date.now()}`);
-    const data = await res.json();
-    return data.dates || [];
-  } catch (e) {
-    console.error('날짜 목록 로드 실패', e);
-    return [];
-  }
-}
-
-// ── 서버에서 데이터 불러오기 (기간별로 여러 파일 합치기) ─────
+// ── 통합 데이터 불러오기 ─────────────────────
 async function loadData() {
   const btn = document.getElementById('refresh-btn');
   btn.classList.add('loading');
   btn.querySelector('span').textContent = '불러오는 중...';
 
   try {
-    const period = document.getElementById('period-select').value; // '1','7','14','30','all'
-    const allDates = await getAvailableDates();
+    const baseUrl = 'https://raw.githubusercontent.com/kimgunkyu/insurance-news-graph/master/data/all_articles.json';
+    const res = await fetch(`${baseUrl}?t=${Date.now()}`);
 
-    let targetDates = allDates;
-    if (period !== 'all') {
-      const days = parseInt(period);
-      const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() - days + 1);
-      const cutoffStr = formatDate(cutoff);
-      targetDates = allDates.filter(d => d >= cutoffStr);
-    }
-
-    if (targetDates.length === 0) {
+    if (!res.ok) {
       document.getElementById('empty-state').style.display = 'block';
       document.getElementById('status').textContent = '데이터 없음';
-      state.nodes = [];
-      state.links = [];
-      renderSidebar();
       return;
     }
 
-    const baseUrl = 'https://raw.githubusercontent.com/kimgunkyu/insurance-news-graph/master/data/';
+    const data = await res.json();
 
-    // 여러 날짜 파일을 병렬로 가져오기
-    const results = await Promise.all(
-      targetDates.map(async (dateStr) => {
-        try {
-          const res = await fetch(`${baseUrl}analyzed_${dateStr}.json?t=${Date.now()}`);
-          if (!res.ok) return null;
-          const json = await res.json();
-          return { dateStr, data: json };
-        } catch (e) {
-          return null;
-        }
-      })
-    );
+    state.allNodes = data.articles || [];
+    state.allLinks = data.relationships || [];
 
-    // 날짜별로 ID를 고유하게 재구성하며 합치기
-    const mergedNodes = [];
-    const mergedLinks = [];
-    const seenTitles = new Set();   // 완전히 같은 제목의 중복 제거
-
-    results.forEach(r => {
-      if (!r || !r.data || !r.data.articles) return;
-      const idMap = {};
-
-      r.data.articles.forEach(article => {
-        // 이미 같은 제목이 있으면 건너뜀 (날짜 다른 파일 간 중복 방지)
-        if (seenTitles.has(article.title)) return;
-        seenTitles.add(article.title);
-
-        const uniqueId = `${r.dateStr}_${article.id}`;
-        idMap[article.id] = uniqueId;
-        mergedNodes.push({ ...article, id: uniqueId, _date: r.dateStr });
-      });
-
-      (r.data.relationships || []).forEach(rel => {
-        const s = idMap[rel.source];
-        const t = idMap[rel.target];
-        if (s && t) {
-          mergedLinks.push({ ...rel, source: s, target: t });
-        }
-      });
-    });
-
-    if (mergedNodes.length === 0) {
-      document.getElementById('empty-state').style.display = 'block';
-      document.getElementById('status').textContent = '데이터 없음';
-      state.nodes = [];
-      state.links = [];
-      renderSidebar();
-      return;
-    }
-
-    state.nodes = mergedNodes;
-    state.links = mergedLinks;
-
-    renderSidebar();
-    initGraph();
-    updateLegend();
-    document.getElementById('empty-state').style.display = 'none';
+    applyPeriodFilter();
 
   } catch(e) {
     document.getElementById('status').textContent = '데이터 로드 실패';
@@ -350,6 +267,38 @@ async function loadData() {
   }
 }
 
+// ── 기간 필터 적용 ────────────────────────────
+function applyPeriodFilter() {
+  const period = document.getElementById('period-select').value;
+
+  let filteredNodes = state.allNodes;
+  if (period !== 'all') {
+    const days = parseInt(period);
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days + 1);
+    const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth()+1).padStart(2,'0')}-${String(cutoff.getDate()).padStart(2,'0')}`;
+    filteredNodes = state.allNodes.filter(n => n.date && n.date >= cutoffStr);
+  }
+
+  const validIds = new Set(filteredNodes.map(n => n.id));
+  const filteredLinks = state.allLinks.filter(l => validIds.has(l.source) && validIds.has(l.target));
+
+  state.nodes = filteredNodes;
+  state.links = filteredLinks;
+
+  if (state.nodes.length === 0) {
+    document.getElementById('empty-state').style.display = 'block';
+    document.getElementById('status').textContent = '데이터 없음';
+    renderSidebar();
+    return;
+  }
+
+  renderSidebar();
+  initGraph();
+  updateLegend();
+  document.getElementById('empty-state').style.display = 'none';
+}
+
 // ── 사이드바 기사 목록 렌더링 ────────────────
 function renderSidebar() {
   const list = document.getElementById('article-list');
@@ -357,7 +306,7 @@ function renderSidebar() {
   list.innerHTML = visible.map(n => {
     const c = COLORS[n.category] || COLORS['기타'];
     return `<div class="article-item ${n.id === state.selectedId ? 'active' : ''}" data-id="${n.id}">
-      <span class="tag" style="background:${c}22;color:${c}">${n.category}</span>
+      <span class="tag" style="background:${c}18;color:${c}">${n.category}</span>
       <div class="title">${n.title}</div>
       <div class="meta">${n.source} · ${n.date}</div>
     </div>`;
@@ -379,8 +328,7 @@ function filterByKeyword(kw) {
     });
     const vis = new Set(state.nodes.filter(n => !n.hidden).map(n => n.id));
     state.links.forEach(l => {
-      const s = l.source?.id||l.source, t = l.target?.id||l.target;
-      l.hidden = !vis.has(s) || !vis.has(t);
+      l.hidden = !vis.has(l.source?.id||l.source) || !vis.has(l.target?.id||l.target);
     });
   }
   renderSidebar();
@@ -401,7 +349,7 @@ function selectNode(id) {
 function openDetail(node) {
   const c = COLORS[node.category] || COLORS['기타'];
   document.getElementById('detail-tag').textContent = node.category;
-  document.getElementById('detail-tag').style.cssText = `background:${c}22;color:${c}`;
+  document.getElementById('detail-tag').style.cssText = `background:${c}18;color:${c}`;
   document.getElementById('detail-title').textContent = node.title;
   document.getElementById('detail-meta').textContent = `${node.source} · ${node.date}`;
   document.getElementById('detail-summary').textContent = node.summary;
@@ -429,26 +377,22 @@ function openDetail(node) {
     el.addEventListener('click', () => selectNode(el.dataset.id))
   );
 
-  // 삭제 버튼 추가
+  // 삭제 버튼
   const oldDeleteBtn = document.getElementById('delete-article-btn');
   if (oldDeleteBtn) oldDeleteBtn.remove();
 
   const deleteBtn = document.createElement('button');
   deleteBtn.id = 'delete-article-btn';
   deleteBtn.textContent = '🗑️ 이 소식 삭제';
-  deleteBtn.style.cssText = 'width:100%; margin-top:16px; padding:8px; font-size:11px; border-radius:6px; border:1px solid #f78166; background:transparent; color:#f78166; cursor:pointer;';
+  deleteBtn.style.cssText = 'width:100%; margin-top:16px; padding:8px; font-size:11px; border-radius:6px; border:1px solid #cf222e; background:transparent; color:#cf222e; cursor:pointer;';
   deleteBtn.addEventListener('click', async () => {
     if (!confirm(`"${node.title}" 소식을 삭제할까요?`)) return;
 
     deleteBtn.textContent = '삭제 중...';
     deleteBtn.disabled = true;
 
-    // 고유 ID(예: 2026_07_01_a3)에서 원래 날짜와 원래 id를 분리
-    const dateStr = node._date;
-    const originalId = node.id.replace(`${dateStr}_`, '');
-
     try {
-      const res = await fetch(`${SERVER_URL}/api/delete-news/${originalId}?date=${dateStr}`, { method: 'DELETE' });
+      const res = await fetch(`${SERVER_URL}/api/delete-news/${node.id}`, { method: 'DELETE' });
       const result = await res.json();
 
       if (result.status === 'success') {
@@ -487,7 +431,7 @@ function initGraph() {
 
   const defs = svg.append('defs');
   const glow = defs.append('filter').attr('id', 'glow');
-  glow.append('feGaussianBlur').attr('stdDeviation', '3.5').attr('result', 'blur');
+  glow.append('feGaussianBlur').attr('stdDeviation', '3').attr('result', 'blur');
   const fm = glow.append('feMerge');
   fm.append('feMergeNode').attr('in', 'blur');
   fm.append('feMergeNode').attr('in', 'SourceGraphic');
@@ -515,12 +459,12 @@ function initGraph() {
     .force('collision', d3.forceCollide().radius(d => rScale(degree[d.id]||0) + 5));
 
   const link = g.append('g').selectAll('line').data(visLinks).join('line')
-    .attr('stroke', '#30363d')
+    .attr('stroke', '#d0d7de')
     .attr('stroke-width', d => 1 + (d.strength||0.5) * 2)
-    .attr('opacity', 0.55);
+    .attr('opacity', 0.7);
 
   const linkLabel = g.append('g').selectAll('text').data(visLinks).join('text')
-    .attr('font-size', 9).attr('fill', '#484f58').attr('text-anchor', 'middle')
+    .attr('font-size', 9).attr('fill', '#8c959f').attr('text-anchor', 'middle')
     .text(d => d.label||'');
 
   const nodeG = g.append('g').selectAll('g').data(visNodes).join('g')
@@ -548,16 +492,16 @@ function initGraph() {
   nodeG.append('circle')
     .attr('r', d => rScale(degree[d.id]||0))
     .attr('fill', d => COLORS[d.category]||COLORS['기타'])
-    .attr('fill-opacity', 0.85)
+    .attr('fill-opacity', 0.88)
     .attr('stroke', d => COLORS[d.category]||COLORS['기타'])
     .attr('stroke-width', 1.5)
-    .attr('stroke-opacity', 0.4)
+    .attr('stroke-opacity', 0.5)
     .attr('filter', d => (degree[d.id]||0) >= 3 ? 'url(#glow)' : null);
 
   nodeG.append('text')
     .attr('text-anchor', 'middle')
     .attr('dy', d => rScale(degree[d.id]||0) + 10)
-    .attr('font-size', 9.5).attr('fill', '#7d8590')
+    .attr('font-size', 9.5).attr('fill', '#57606a')
     .text(d => rScale(degree[d.id]||0) < 12 ? '' : d.title.length > 12 ? d.title.slice(0,12)+'…' : d.title);
 
   sim.on('tick', () => {
@@ -592,14 +536,14 @@ function highlightGraph(id) {
   state.g.selectAll('circle').attr('opacity', d => conn.has(d.id) ? 1 : 0.15).attr('stroke-width', d => d.id===id ? 3 : 1.5);
   state.g.selectAll('line').attr('opacity', d => {
     const s=d.source?.id||d.source, t=d.target?.id||d.target;
-    return (s===id||t===id) ? 1 : 0.05;
+    return (s===id||t===id) ? 1 : 0.08;
   });
 }
 
 function resetHighlight() {
   if (!state.g) return;
-  state.g.selectAll('circle').attr('opacity', 0.85).attr('stroke-width', 1.5);
-  state.g.selectAll('line').attr('opacity', 0.55);
+  state.g.selectAll('circle').attr('opacity', 0.88).attr('stroke-width', 1.5);
+  state.g.selectAll('line').attr('opacity', 0.7);
 }
 
 // ── 범례 업데이트 + 클릭 필터 ────────────────
@@ -666,7 +610,7 @@ function filterByCategory(cats) {
 
 // ── 이벤트 리스너 ────────────────────────────
 document.getElementById('refresh-btn').addEventListener('click', loadData);
-document.getElementById('period-select').addEventListener('change', loadData);
+document.getElementById('period-select').addEventListener('change', applyPeriodFilter);
 
 document.getElementById('search-btn').addEventListener('click', () => {
   filterByKeyword(document.getElementById('search-input').value);
@@ -685,7 +629,6 @@ document.getElementById('detail-close').addEventListener('click', () => {
 });
 window.addEventListener('resize', () => { if(state.nodes.length) initGraph(); });
 
-// 사이드바 토글 (모바일)
 document.getElementById('sidebar-toggle').addEventListener('click', () => {
   document.getElementById('sidebar').classList.toggle('open');
 });
@@ -775,7 +718,7 @@ document.getElementById('submit-add-news').addEventListener('click', async () =>
 
     if (result.status === 'success') {
       statusEl.textContent = `✅ ${result.message}`;
-      statusEl.style.color = '#3fb950';
+      statusEl.style.color = '#2da44e';
 
       setTimeout(() => {
         document.getElementById('add-news-modal').style.display = 'none';
@@ -788,11 +731,11 @@ document.getElementById('submit-add-news').addEventListener('click', async () =>
       }, 1500);
     } else {
       statusEl.textContent = `❌ ${result.message}`;
-      statusEl.style.color = '#f78166';
+      statusEl.style.color = '#cf222e';
     }
   } catch (e) {
     statusEl.textContent = `❌ 서버 연결 실패: ${e.message}`;
-    statusEl.style.color = '#f78166';
+    statusEl.style.color = '#cf222e';
   } finally {
     submitBtn.disabled = false;
     submitBtn.style.opacity = '1';

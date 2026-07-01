@@ -2,26 +2,25 @@
 # main.py
 # FastAPI 백엔드 서버
 # 브라우저(HTML 앱)랑 Python을 연결해주는 파일
+# 통합 파일(all_articles.json) 구조로 관리
 # ─────────────────────────────────────────────
 
-from fastapi import FastAPI, UploadFile, Form, File   # 웹 서버 프레임워크 + 파일업로드
+from fastapi import FastAPI, UploadFile, Form, File
 from typing import Optional
-from fastapi.middleware.cors import CORSMiddleware  # 브라우저 접근 허용
-from fastapi.staticfiles import StaticFiles    # HTML 파일 서빙
-from fastapi.responses import FileResponse     # HTML 파일 응답용
-import json                                    # JSON 읽기
-import os                                      # 파일 경로 처리
-import base64                                  # 이미지 인코딩
-import requests                                # GitHub API 호출
-import anthropic                               # Claude API
-from datetime import datetime
-from crawler import crawl_all                  # 크롤러 불러오기
-from analyzer import analyze_articles, save_analyzed_data, load_latest_articles  # 분석기 불러오기
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+import json
+import os
+import base64
+import requests
+import anthropic
+from datetime import datetime, timedelta
+from crawler import crawl_all
+from analyzer import analyze_articles, save_analyzed_data, load_latest_articles, RELATION_WINDOW_DAYS
 
 # ── FastAPI 앱 생성 ──────────────────────────
 app = FastAPI()
 
-# ── CORS 설정 ────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -33,8 +32,56 @@ app.add_middleware(
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 GITHUB_REPO = "kimgunkyu/insurance-news-graph"
+UNIFIED_PATH = "data/all_articles.json"
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+
+# ── GitHub 파일 읽기/쓰기 함수 ────────────────
+
+def get_github_file(path):
+    """GitHub에서 파일 내용 가져오기 (raw 데이터 + SHA)"""
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{path}"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+    res = requests.get(url, headers=headers)
+
+    if res.status_code == 200:
+        content = res.json()
+        decoded = base64.b64decode(content['content']).decode('utf-8')
+        return json.loads(decoded), content['sha']
+    else:
+        return None, None
+
+
+def update_github_file(path, data, sha=None, message=None):
+    """GitHub에 파일 업데이트(또는 새로 생성)하는 함수"""
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{path}"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+
+    content_str = json.dumps(data, ensure_ascii=False, indent=2)
+    content_b64 = base64.b64encode(content_str.encode('utf-8')).decode('utf-8')
+
+    payload = {
+        "message": message or f"업데이트: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+        "content": content_b64,
+    }
+    if sha:
+        payload["sha"] = sha
+
+    res = requests.put(url, headers=headers, json=payload)
+    return res.status_code in [200, 201]
+
+
+def get_next_id(existing_articles):
+    """기존 기사들 중 가장 큰 숫자 ID 다음 번호를 반환"""
+    max_num = 0
+    for a in existing_articles:
+        try:
+            num = int(a['id'].replace('a', ''))
+            max_num = max(max_num, num)
+        except (ValueError, KeyError):
+            continue
+    return max_num + 1
 
 
 # ── API 엔드포인트 ───────────────────────────
@@ -42,13 +89,14 @@ client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 @app.get("/api/news")
 def get_news():
     """
-    가장 최근 분석된 뉴스 데이터를 반환하는 API (단일 파일용, 참고용으로 유지)
+    통합 파일 전체를 반환하는 API
+    (기간 필터는 브라우저에서 처리)
     """
-    files = [f for f in os.listdir('data') if f.startswith('analyzed_')]
-    if not files:
+    files = [f for f in os.listdir('data')] if os.path.exists('data') else []
+    if 'all_articles.json' not in files:
         return {"articles": [], "relationships": []}
-    latest_file = sorted(files)[-1]
-    with open(f"data/{latest_file}", 'r', encoding='utf-8') as f:
+
+    with open(UNIFIED_PATH, 'r', encoding='utf-8') as f:
         data = json.load(f)
     return data
 
@@ -68,7 +116,7 @@ def fetch_and_analyze():
     filename = save_analyzed_data(analyzed)
     return {
         "status": "success",
-        "message": f"완료! 기사 {len(analyzed['articles'])}개 분석됨",
+        "message": f"완료! 전체 기사 {len(analyzed['articles'])}개",
         "filename": filename
     }
 
@@ -76,58 +124,28 @@ def fetch_and_analyze():
 @app.get("/api/status")
 def get_status():
     """서버 상태 확인용 API"""
-    files = [f for f in os.listdir('data') if f.startswith('analyzed_')]
-    latest = sorted(files)[-1] if files else "없음"
+    exists = os.path.exists(UNIFIED_PATH)
+    count = 0
+    if exists:
+        with open(UNIFIED_PATH, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            count = len(data.get('articles', []))
     return {
         "status": "ok",
-        "latest_file": latest,
-        "total_files": len(files)
+        "unified_file_exists": exists,
+        "total_articles": count
     }
-
-
-# ── GitHub 파일 읽기/쓰기 함수 ────────────────
-
-def get_github_file(path):
-    """GitHub에서 파일 내용 가져오기 (raw 데이터 + SHA)"""
-    url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{path}"
-    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
-    res = requests.get(url, headers=headers)
-
-    if res.status_code == 200:
-        content = res.json()
-        decoded = base64.b64decode(content['content']).decode('utf-8')
-        return json.loads(decoded), content['sha']
-    else:
-        return None, None
-
-
-def update_github_file(path, data, sha=None):
-    """GitHub에 파일 업데이트(또는 새로 생성)하는 함수"""
-    url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{path}"
-    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
-
-    content_str = json.dumps(data, ensure_ascii=False, indent=2)
-    content_b64 = base64.b64encode(content_str.encode('utf-8')).decode('utf-8')
-
-    payload = {
-        "message": f"수동 소식 추가: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-        "content": content_b64,
-    }
-    if sha:
-        payload["sha"] = sha
-
-    res = requests.put(url, headers=headers, json=payload)
-    return res.status_code in [200, 201]
 
 
 @app.post("/api/add-news")
 async def add_news(
-    text: Optional[str] = Form(None),           # 텍스트로 입력한 경우
-    image: Optional[UploadFile] = File(None),   # 이미지로 입력한 경우
+    text: Optional[str] = Form(None),
+    image: Optional[UploadFile] = File(None),
 ):
     """
     사용자가 텍스트나 이미지를 붙여넣으면
-    Claude가 분석해서 오늘 날짜의 analyzed 파일에 추가하는 API
+    Claude가 분석해서 통합 파일에 추가하는 API
+    최근 30일치 기존 기사와도 관계를 분석함
     """
 
     content_blocks = []
@@ -148,20 +166,30 @@ async def add_news(
     elif not text:
         return {"status": "error", "message": "텍스트나 이미지를 입력해주세요."}
 
-    today = datetime.now().strftime("%Y_%m_%d")
-    filepath = f"data/analyzed_{today}.json"
-    existing_data, sha = get_github_file(filepath)
-
+    # 1. 통합 파일 가져오기
+    existing_data, sha = get_github_file(UNIFIED_PATH)
     if not existing_data:
         existing_data = {"articles": [], "relationships": []}
 
-    existing_titles = [a['title'] for a in existing_data['articles']]
+    # 2. 최근 30일치 기존 기사만 추려서 관계 분석 참고자료로 사용
+    cutoff = datetime.now() - timedelta(days=RELATION_WINDOW_DAYS)
+    recent_existing = []
+    for a in existing_data['articles']:
+        try:
+            article_date = datetime.strptime(a['date'], '%Y-%m-%d')
+            if article_date >= cutoff:
+                recent_existing.append(a)
+        except (ValueError, KeyError):
+            continue
 
+    recent_text = "\n".join([f"- {a['id']}: {a['title']} ({a['category']})" for a in recent_existing])
+
+    # 3. Claude에게 보낼 프롬프트 구성 (요약 + 관계 한번에)
     prompt = f"""
 당신은 한국 보험업계 전문 애널리스트입니다.
 
-기존에 이미 분석된 기사 제목들:
-{json.dumps(existing_titles, ensure_ascii=False)}
+최근 30일간 기존에 분석된 기사 목록 (관계 파악용 참고자료):
+{recent_text if recent_text else "(없음)"}
 
 {"위 이미지에 담긴 보험 관련 소식을 분석해줘." if image else f"아래 보험 관련 소식을 분석해줘:\\n\\n{text}"}
 
@@ -173,9 +201,11 @@ async def add_news(
   "source": "출처 (알 수 없으면 '수동입력')",
   "summary": "5~7문장으로 상세 요약. 구체적 수치, 시행시기, 관련기관 포함.",
   "keywords": ["키워드1", "키워드2", "키워드3"],
-  "related_titles": ["기존 기사 중 관련있는 제목들, 최대 3개"],
-  "relationship_labels": ["각 관련기사와의 관계를 5자 이내로, related_titles와 같은 순서로"]
+  "related_article_ids": ["기존 기사 중 관련있는 기사의 id, 최대 4개. 카테고리가 달라도 실제 인과관계/연관성이 있으면 적극적으로 포함"],
+  "relationship_labels": ["각 관련기사와의 관계를 5자 이내로, related_article_ids와 같은 순서로"]
 }}
+
+[중요] 관계는 카테고리가 같아서가 아니라 실제 내용상 연관성(원인-결과, 정책의 다른 측면, 같은 이슈의 후속 등)이 있을 때만 연결하세요.
 """
     content_blocks.append({"type": "text", "text": prompt})
 
@@ -203,7 +233,8 @@ async def add_news(
         if not parsed:
             return {"status": "error", "message": "분석 결과 파싱 실패"}
 
-        new_id = f"a{len(existing_data['articles']) + 1}"
+        # 4. 새 기사 ID 부여
+        new_id = f"a{get_next_id(existing_data['articles'])}"
         new_article = {
             "id": new_id,
             "title": parsed.get("title", ""),
@@ -214,25 +245,31 @@ async def add_news(
             "keywords": parsed.get("keywords", []),
         }
 
-        related_titles = parsed.get("related_titles", [])
+        # 5. 관계 추가 (id로 직접 매칭)
+        related_ids = parsed.get("related_article_ids", [])
         relationship_labels = parsed.get("relationship_labels", [])
+        existing_ids = {a['id'] for a in existing_data['articles']}
 
         new_relationships = []
-        for i, rel_title in enumerate(related_titles):
-            matched = next((a for a in existing_data['articles'] if a['title'] == rel_title), None)
-            if matched:
+        for i, rel_id in enumerate(related_ids):
+            if rel_id in existing_ids:
                 label = relationship_labels[i] if i < len(relationship_labels) else "연관"
                 new_relationships.append({
                     "source": new_id,
-                    "target": matched['id'],
+                    "target": rel_id,
                     "label": label,
                     "strength": 0.7
                 })
 
+        # 6. 통합 데이터에 추가
         existing_data['articles'].append(new_article)
         existing_data['relationships'].extend(new_relationships)
 
-        success = update_github_file(filepath, existing_data, sha)
+        # 7. GitHub에 저장
+        success = update_github_file(
+            UNIFIED_PATH, existing_data, sha,
+            message=f"수동 소식 추가: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        )
 
         if success:
             return {"status": "success", "message": f"'{new_article['title']}' 추가 완료!", "article": new_article}
@@ -244,14 +281,12 @@ async def add_news(
 
 
 @app.delete("/api/delete-news/{article_id}")
-def delete_news(article_id: str, date: str = None):
+def delete_news(article_id: str):
     """
     특정 기사를 삭제하고 관련 관계선도 함께 제거하는 API
-    date: YYYY_MM_DD 형식 (예: 2026_07_01). 없으면 오늘 날짜 파일에서 찾음
+    (통합 파일 구조라 날짜 파라미터 불필요)
     """
-    target_date = date or datetime.now().strftime("%Y_%m_%d")
-    filepath = f"data/analyzed_{target_date}.json"
-    existing_data, sha = get_github_file(filepath)
+    existing_data, sha = get_github_file(UNIFIED_PATH)
 
     if not existing_data:
         return {"status": "error", "message": "파일을 찾을 수 없습니다."}
@@ -267,37 +302,15 @@ def delete_news(article_id: str, date: str = None):
         if r['source'] != article_id and r['target'] != article_id
     ]
 
-    success = update_github_file(filepath, existing_data, sha)
+    success = update_github_file(
+        UNIFIED_PATH, existing_data, sha,
+        message=f"소식 삭제: {article_id} ({datetime.now().strftime('%Y-%m-%d %H:%M')})"
+    )
 
     if success:
         return {"status": "success", "message": "삭제 완료"}
     else:
         return {"status": "error", "message": "GitHub 저장 실패"}
-
-
-@app.get("/api/dates")
-def get_available_dates():
-    """
-    GitHub data 폴더에 있는 analyzed 파일들의 날짜 목록을 반환하는 API
-    (index.html에서 어떤 날짜들이 있는지 알아야 fetch할 수 있어서 필요해요)
-    """
-    url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/data"
-    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
-    res = requests.get(url, headers=headers)
-
-    if res.status_code != 200:
-        return {"dates": []}
-
-    files = res.json()
-    dates = []
-    for f in files:
-        name = f['name']
-        if name.startswith('analyzed_') and name.endswith('.json'):
-            date_part = name.replace('analyzed_', '').replace('.json', '')
-            dates.append(date_part)
-
-    dates.sort(reverse=True)   # 최신 날짜 먼저
-    return {"dates": dates}
 
 
 # ── HTML 파일 서빙 ────────────────────────────
