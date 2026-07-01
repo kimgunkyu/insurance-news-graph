@@ -151,6 +151,37 @@ def update_github_file(path, data, sha=None):
 
 
 @app.post("/api/add-news")
+@app.delete("/api/delete-news/{article_id}")
+def delete_news(article_id: str):
+    """
+    특정 기사를 삭제하고 관련 관계선도 함께 제거하는 API
+    """
+    today = datetime.now().strftime("%Y_%m_%d")
+    filepath = f"data/analyzed_{today}.json"
+    existing_data, sha = get_github_file(filepath)
+
+    if not existing_data:
+        return {"status": "error", "message": "파일을 찾을 수 없습니다."}
+
+    # 해당 id의 기사 제거
+    original_count = len(existing_data['articles'])
+    existing_data['articles'] = [a for a in existing_data['articles'] if a['id'] != article_id]
+
+    if len(existing_data['articles']) == original_count:
+        return {"status": "error", "message": "해당 기사를 찾을 수 없습니다."}
+
+    # 이 기사와 연결된 관계선도 제거
+    existing_data['relationships'] = [
+        r for r in existing_data['relationships']
+        if r['source'] != article_id and r['target'] != article_id
+    ]
+
+    success = update_github_file(filepath, existing_data, sha)
+
+    if success:
+        return {"status": "success", "message": "삭제 완료"}
+    else:
+        return {"status": "error", "message": "GitHub 저장 실패"}
 async def add_news(
     text: str = Form(None),           # 텍스트로 입력한 경우
     image: UploadFile = None,         # 이미지로 입력한 경우

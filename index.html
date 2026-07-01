@@ -211,7 +211,7 @@ async function loadData() {
     const today = new Date();
     const filename = `analyzed_${today.getFullYear()}_${String(today.getMonth()+1).padStart(2,'0')}_${String(today.getDate()).padStart(2,'0')}.json`;
     
-    const res = await fetch(baseUrl + filename);
+    const res = await fetch(baseUrl + filename + '?t=' + Date.now());
     const data = await res.json();
 
     if (!data.articles || data.articles.length === 0) {
@@ -319,7 +319,41 @@ function openDetail(node) {
   document.querySelectorAll('.rel-item').forEach(el =>
     el.addEventListener('click', () => selectNode(el.dataset.id))
   );
+  // 삭제 버튼 추가 (기존에 있으면 지우고 새로 추가)
+  const oldDeleteBtn = document.getElementById('delete-article-btn');
+  if (oldDeleteBtn) oldDeleteBtn.remove();
 
+  const deleteBtn = document.createElement('button');
+  deleteBtn.id = 'delete-article-btn';
+  deleteBtn.textContent = '🗑️ 이 소식 삭제';
+  deleteBtn.style.cssText = 'width:100%; margin-top:16px; padding:8px; font-size:11px; border-radius:6px; border:1px solid #f78166; background:transparent; color:#f78166; cursor:pointer;';
+  deleteBtn.addEventListener('click', async () => {
+    if (!confirm(`"${node.title}" 소식을 삭제할까요?`)) return;
+
+    deleteBtn.textContent = '삭제 중...';
+    deleteBtn.disabled = true;
+
+    try {
+      const res = await fetch(`${SERVER_URL}/api/delete-news/${node.id}`, { method: 'DELETE' });
+      const result = await res.json();
+
+      if (result.status === 'success') {
+        document.getElementById('detail-panel').classList.remove('open');
+        setTimeout(() => loadData(), 1000);
+      } else {
+        alert('삭제 실패: ' + result.message);
+        deleteBtn.textContent = '🗑️ 이 소식 삭제';
+        deleteBtn.disabled = false;
+      }
+    } catch (e) {
+      alert('서버 연결 실패: ' + e.message);
+      deleteBtn.textContent = '🗑️ 이 소식 삭제';
+      deleteBtn.disabled = false;
+    }
+  });
+
+  document.getElementById('detail-content').appendChild(deleteBtn);
+    
   document.getElementById('detail-panel').classList.add('open');
 }
 
