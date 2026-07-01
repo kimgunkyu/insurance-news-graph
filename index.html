@@ -19,6 +19,11 @@
   #sidebar-header h1 { font-size: 14px; font-weight: 700; }
   #sidebar-header p { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 
+  /* 기간 선택 */
+  #period-bar { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  #period-select { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 12px; padding: 7px 9px; outline: none; cursor: pointer; }
+  #period-select:focus { border-color: var(--accent); }
+
   /* 검색창 */
   #search-bar { padding: 10px 12px; border-bottom: 1px solid var(--border); display: flex; gap: 6px; }
   #search-input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 12px; padding: 6px 9px; outline: none; }
@@ -33,6 +38,14 @@
   .spinner { width: 11px; height: 11px; border: 2px solid transparent; border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; display: none; }
   #refresh-btn.loading .spinner { display: block; }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* 소식 추가 버튼 */
+  #add-news-btn { margin: 8px 12px 0; background: transparent; border: 1px solid #3fb950; color: #3fb950; border-radius: 6px; padding: 8px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
+
+  /* 소식 추가 모달 */
+  #add-news-modal { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:200; align-items:center; justify-content:center; }
+  #add-news-modal .modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; width: 420px; max-width: 90%; }
+  .input-tab { flex:1; padding:6px; font-size:12px; border-radius:6px; cursor:pointer; }
 
   /* 기사 목록 */
   #article-list { flex: 1; overflow-y: auto; padding: 6px 0; }
@@ -53,6 +66,9 @@
   #graph-controls { position: absolute; top: 14px; left: 14px; display: flex; gap: 6px; }
   .ctrl-btn { background: rgba(22,27,34,0.92); border: 1px solid var(--border); color: var(--text-muted); border-radius: 6px; width: 30px; height: 30px; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
   .ctrl-btn:hover { color: var(--text); border-color: var(--accent); }
+
+  /* 사이드바 토글 버튼 (모바일 대응) */
+  #sidebar-toggle { position: absolute; top: 14px; left: 14px; z-index: 30; background: rgba(22,27,34,0.92); border: 1px solid var(--border); color: var(--text); border-radius: 6px; width: 34px; height: 34px; font-size: 16px; cursor: pointer; display: none; align-items: center; justify-content: center; }
 
   /* 범례 */
   #legend { position: absolute; top: 14px; right: 14px; background: rgba(22,27,34,0.92); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 11px; }
@@ -90,9 +106,20 @@
   .rel-name { font-size: 11px; }
   .article-link { display: block; margin-top: 12px; font-size: 11px; color: var(--accent); text-decoration: none; }
   .article-link:hover { text-decoration: underline; }
+
+  /* 모바일 대응 */
+  @media (max-width: 768px) {
+    #sidebar { position: absolute; top: 0; bottom: 0; left: 0; width: 85%; max-width: 320px; z-index: 25; transform: translateX(-100%); transition: transform 0.25s ease; }
+    #sidebar.open { transform: translateX(0); }
+    #sidebar-toggle { display: flex; }
+    #detail-panel { width: 90%; }
+  }
 </style>
 </head>
 <body>
+
+<!-- 사이드바 토글 버튼 (모바일) -->
+<button id="sidebar-toggle">☰</button>
 
 <!-- 왼쪽 사이드바 -->
 <div id="sidebar">
@@ -100,6 +127,17 @@
     <h1>📰 보험 뉴스 관계도</h1>
     <p>Insurance News Knowledge Graph</p>
   </div>
+
+  <div id="period-bar">
+    <select id="period-select">
+      <option value="1">오늘</option>
+      <option value="7" selected>최근 7일</option>
+      <option value="14">최근 14일</option>
+      <option value="30">최근 30일</option>
+      <option value="all">전체 기간</option>
+    </select>
+  </div>
+
   <div id="search-bar">
     <input type="text" id="search-input" placeholder="키워드 검색 (예: 수수료, 실손보험)" />
     <button id="search-btn">검색</button>
@@ -108,18 +146,16 @@
     <div class="spinner"></div>
     <span>🔄 최신 데이터 불러오기</span>
   </button>
-  <button id="add-news-btn" style="margin: 8px 12px 0; background: transparent; border: 1px solid #3fb950; color: #3fb950; border-radius: 6px; padding: 8px 12px; font-size: 12px; font-weight: 600; cursor: pointer;">
-    ➕ 소식 추가하기
-  </button>
+  <button id="add-news-btn">➕ 소식 추가하기</button>
 
   <!-- 소식 추가 모달 -->
-  <div id="add-news-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:200; align-items:center; justify-content:center;">
-    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; width: 420px; max-width: 90%;">
+  <div id="add-news-modal">
+    <div class="modal-box">
       <h3 style="font-size:14px; margin-bottom:14px;">📰 소식 추가하기</h3>
 
       <div style="display:flex; gap:6px; margin-bottom:12px;">
-        <button id="tab-text" class="input-tab active" style="flex:1; padding:6px; font-size:12px; border-radius:6px; border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer;">텍스트</button>
-        <button id="tab-image" class="input-tab" style="flex:1; padding:6px; font-size:12px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--text-muted); cursor:pointer;">이미지</button>
+        <button id="tab-text" class="input-tab active" style="border:1px solid var(--accent); background:var(--accent); color:#fff;">텍스트</button>
+        <button id="tab-image" class="input-tab" style="border:1px solid var(--border); background:transparent; color:var(--text-muted);">이미지</button>
       </div>
 
       <div id="text-input-area">
@@ -181,6 +217,9 @@
 </div>
 
 <script>
+// ── 서버 주소 ──────────────────────────────────
+const SERVER_URL = 'https://insurance-news-graph.onrender.com';
+
 // ── 카테고리별 색상 ──────────────────────────
 const COLORS = {
   '규제/법률': '#58a6ff',
@@ -196,42 +235,114 @@ const COLORS = {
 // ── 앱 상태 ──────────────────────────────────
 const state = { nodes: [], links: [], selectedId: null, svg: null, g: null, zoom: null };
 
-// ── 서버에서 데이터 불러오기 ─────────────────
+// ── 날짜 유틸 ────────────────────────────────
+function formatDate(d) {
+  return `${d.getFullYear()}_${String(d.getMonth()+1).padStart(2,'0')}_${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// GitHub에서 존재하는 analyzed 파일 날짜 목록 가져오기
+async function getAvailableDates() {
+  try {
+    const res = await fetch(`${SERVER_URL}/api/dates?t=${Date.now()}`);
+    const data = await res.json();
+    return data.dates || [];
+  } catch (e) {
+    console.error('날짜 목록 로드 실패', e);
+    return [];
+  }
+}
+
+// ── 서버에서 데이터 불러오기 (기간별로 여러 파일 합치기) ─────
 async function loadData() {
   const btn = document.getElementById('refresh-btn');
   btn.classList.add('loading');
   btn.querySelector('span').textContent = '불러오는 중...';
 
   try {
-    // main.py 서버에서 분석된 뉴스 데이터 가져오기
-    // GitHub에서 최신 분석 파일 가져오기
-    const baseUrl = 'https://raw.githubusercontent.com/kimgunkyu/insurance-news-graph/master/data/';
-    
-    // 오늘 날짜로 파일명 생성
-    const today = new Date();
-    const filename = `analyzed_${today.getFullYear()}_${String(today.getMonth()+1).padStart(2,'0')}_${String(today.getDate()).padStart(2,'0')}.json`;
-    
-    const res = await fetch(baseUrl + filename + '?t=' + Date.now());
-    const data = await res.json();
+    const period = document.getElementById('period-select').value; // '1','7','14','30','all'
+    const allDates = await getAvailableDates();
 
-    if (!data.articles || data.articles.length === 0) {
+    let targetDates = allDates;
+    if (period !== 'all') {
+      const days = parseInt(period);
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days + 1);
+      const cutoffStr = formatDate(cutoff);
+      targetDates = allDates.filter(d => d >= cutoffStr);
+    }
+
+    if (targetDates.length === 0) {
       document.getElementById('empty-state').style.display = 'block';
-      document.getElementById('status').textContent = '데이터 없음 — analyzer.py를 먼저 실행하세요';
+      document.getElementById('status').textContent = '데이터 없음';
+      state.nodes = [];
+      state.links = [];
+      renderSidebar();
       return;
     }
 
-    // 상태에 저장
-    state.nodes = data.articles;
-    state.links = data.relationships;
+    const baseUrl = 'https://raw.githubusercontent.com/kimgunkyu/insurance-news-graph/master/data/';
 
-    // 화면 업데이트
+    // 여러 날짜 파일을 병렬로 가져오기
+    const results = await Promise.all(
+      targetDates.map(async (dateStr) => {
+        try {
+          const res = await fetch(`${baseUrl}analyzed_${dateStr}.json?t=${Date.now()}`);
+          if (!res.ok) return null;
+          const json = await res.json();
+          return { dateStr, data: json };
+        } catch (e) {
+          return null;
+        }
+      })
+    );
+
+    // 날짜별로 ID를 고유하게 재구성하며 합치기
+    const mergedNodes = [];
+    const mergedLinks = [];
+    const seenTitles = new Set();   // 완전히 같은 제목의 중복 제거
+
+    results.forEach(r => {
+      if (!r || !r.data || !r.data.articles) return;
+      const idMap = {};
+
+      r.data.articles.forEach(article => {
+        // 이미 같은 제목이 있으면 건너뜀 (날짜 다른 파일 간 중복 방지)
+        if (seenTitles.has(article.title)) return;
+        seenTitles.add(article.title);
+
+        const uniqueId = `${r.dateStr}_${article.id}`;
+        idMap[article.id] = uniqueId;
+        mergedNodes.push({ ...article, id: uniqueId, _date: r.dateStr });
+      });
+
+      (r.data.relationships || []).forEach(rel => {
+        const s = idMap[rel.source];
+        const t = idMap[rel.target];
+        if (s && t) {
+          mergedLinks.push({ ...rel, source: s, target: t });
+        }
+      });
+    });
+
+    if (mergedNodes.length === 0) {
+      document.getElementById('empty-state').style.display = 'block';
+      document.getElementById('status').textContent = '데이터 없음';
+      state.nodes = [];
+      state.links = [];
+      renderSidebar();
+      return;
+    }
+
+    state.nodes = mergedNodes;
+    state.links = mergedLinks;
+
     renderSidebar();
     initGraph();
     updateLegend();
     document.getElementById('empty-state').style.display = 'none';
 
   } catch(e) {
-    document.getElementById('status').textContent = '서버 연결 실패 — python main.py 실행했나요?';
+    document.getElementById('status').textContent = '데이터 로드 실패';
     console.error(e);
   } finally {
     btn.classList.remove('loading');
@@ -295,12 +406,10 @@ function openDetail(node) {
   document.getElementById('detail-meta').textContent = `${node.source} · ${node.date}`;
   document.getElementById('detail-summary').textContent = node.summary;
 
-  // 원문 링크
   const linkEl = document.getElementById('detail-link');
   if (node.link) { linkEl.href = node.link; linkEl.style.display = 'block'; }
   else { linkEl.style.display = 'none'; }
 
-  // 연관 기사 목록
   const related = state.links
     .filter(l => { const s=l.source?.id||l.source, t=l.target?.id||l.target; return s===node.id||t===node.id; })
     .map(l => {
@@ -319,7 +428,8 @@ function openDetail(node) {
   document.querySelectorAll('.rel-item').forEach(el =>
     el.addEventListener('click', () => selectNode(el.dataset.id))
   );
-  // 삭제 버튼 추가 (기존에 있으면 지우고 새로 추가)
+
+  // 삭제 버튼 추가
   const oldDeleteBtn = document.getElementById('delete-article-btn');
   if (oldDeleteBtn) oldDeleteBtn.remove();
 
@@ -333,8 +443,12 @@ function openDetail(node) {
     deleteBtn.textContent = '삭제 중...';
     deleteBtn.disabled = true;
 
+    // 고유 ID(예: 2026_07_01_a3)에서 원래 날짜와 원래 id를 분리
+    const dateStr = node._date;
+    const originalId = node.id.replace(`${dateStr}_`, '');
+
     try {
-      const res = await fetch(`${SERVER_URL}/api/delete-news/${node.id}`, { method: 'DELETE' });
+      const res = await fetch(`${SERVER_URL}/api/delete-news/${originalId}?date=${dateStr}`, { method: 'DELETE' });
       const result = await res.json();
 
       if (result.status === 'success') {
@@ -353,7 +467,7 @@ function openDetail(node) {
   });
 
   document.getElementById('detail-content').appendChild(deleteBtn);
-    
+
   document.getElementById('detail-panel').classList.add('open');
 }
 
@@ -371,7 +485,6 @@ function initGraph() {
   const g = svg.append('g');
   state.g = g;
 
-  // 글로우 필터 (연결 많은 노드에 빛나는 효과)
   const defs = svg.append('defs');
   const glow = defs.append('filter').attr('id', 'glow');
   glow.append('feGaussianBlur').attr('stdDeviation', '3.5').attr('result', 'blur');
@@ -386,7 +499,6 @@ function initGraph() {
     return visIds.has(s) && visIds.has(t) && !l.hidden;
   });
 
-  // 연결 수에 따라 노드 크기 결정
   const degree = {};
   visNodes.forEach(n => degree[n.id] = 0);
   visLinks.forEach(l => {
@@ -396,25 +508,21 @@ function initGraph() {
   });
   const rScale = d3.scaleSqrt().domain([0, d3.max(Object.values(degree))||1]).range([8, 26]);
 
-  // 물리 시뮬레이션 (노드들이 자연스럽게 퍼지도록)
   const sim = d3.forceSimulation(visNodes)
     .force('link', d3.forceLink(visLinks).id(d => d.id).distance(90).strength(0.5))
     .force('charge', d3.forceManyBody().strength(-200))
     .force('center', d3.forceCenter(W/2, H/2))
     .force('collision', d3.forceCollide().radius(d => rScale(degree[d.id]||0) + 5));
 
-  // 엣지(연결선) 그리기
   const link = g.append('g').selectAll('line').data(visLinks).join('line')
     .attr('stroke', '#30363d')
     .attr('stroke-width', d => 1 + (d.strength||0.5) * 2)
     .attr('opacity', 0.55);
 
-  // 엣지 라벨
   const linkLabel = g.append('g').selectAll('text').data(visLinks).join('text')
     .attr('font-size', 9).attr('fill', '#484f58').attr('text-anchor', 'middle')
     .text(d => d.label||'');
 
-  // 노드 그룹 (드래그 가능)
   const nodeG = g.append('g').selectAll('g').data(visNodes).join('g')
     .attr('cursor', 'pointer')
     .call(d3.drag()
@@ -437,7 +545,6 @@ function initGraph() {
     })
     .on('mouseout', () => { document.getElementById('tooltip').style.display = 'none'; });
 
-  // 노드 원 그리기
   nodeG.append('circle')
     .attr('r', d => rScale(degree[d.id]||0))
     .attr('fill', d => COLORS[d.category]||COLORS['기타'])
@@ -447,14 +554,12 @@ function initGraph() {
     .attr('stroke-opacity', 0.4)
     .attr('filter', d => (degree[d.id]||0) >= 3 ? 'url(#glow)' : null);
 
-  // 노드 라벨 (큰 노드만)
   nodeG.append('text')
     .attr('text-anchor', 'middle')
     .attr('dy', d => rScale(degree[d.id]||0) + 10)
     .attr('font-size', 9.5).attr('fill', '#7d8590')
     .text(d => rScale(degree[d.id]||0) < 12 ? '' : d.title.length > 12 ? d.title.slice(0,12)+'…' : d.title);
 
-  // 매 틱마다 위치 업데이트
   sim.on('tick', () => {
     link.attr('x1', d=>d.source.x).attr('y1', d=>d.source.y).attr('x2', d=>d.target.x).attr('y2', d=>d.target.y);
     linkLabel.attr('x', d=>(d.source.x+d.target.x)/2).attr('y', d=>(d.source.y+d.target.y)/2);
@@ -463,12 +568,10 @@ function initGraph() {
 
   document.getElementById('status').textContent = `노드 ${visNodes.length}개 · 엣지 ${visLinks.length}개`;
 
-  // 줌 버튼
   document.getElementById('zoom-in').onclick = () => svg.transition().call(zoom.scaleBy, 1.4);
   document.getElementById('zoom-out').onclick = () => svg.transition().call(zoom.scaleBy, 0.7);
   document.getElementById('zoom-reset').onclick = () => svg.transition().call(zoom.transform, d3.zoomIdentity.translate(W/2,H/2).scale(0.9).translate(-W/2,-H/2));
 
-  // 배경 클릭 시 선택 해제
   svg.on('click', () => {
     state.selectedId = null;
     document.getElementById('detail-panel').classList.remove('open');
@@ -508,16 +611,14 @@ function updateLegend() {
     </div>`
   ).join('');
 
-  // 선택된 카테고리 상태 관리
   let selectedCats = new Set();
 
   document.querySelectorAll('.legend-item').forEach(el => {
     el.addEventListener('click', (e) => {
       const cat = el.dataset.cat;
-      const isCtrl = e.ctrlKey || e.metaKey;  // Ctrl 또는 Mac의 Cmd
+      const isCtrl = e.ctrlKey || e.metaKey;
 
       if (isCtrl) {
-        // Ctrl 클릭 → 누적 선택
         if (selectedCats.has(cat)) {
           selectedCats.delete(cat);
           el.style.opacity = '0.4';
@@ -526,13 +627,10 @@ function updateLegend() {
           el.style.opacity = '1';
         }
       } else {
-        // 일반 클릭
         if (selectedCats.has(cat) && selectedCats.size === 1) {
-          // 이미 선택된 것 하나만 있을 때 다시 클릭 → 전체 해제
           selectedCats.clear();
           document.querySelectorAll('.legend-item').forEach(e => e.style.opacity = '1');
         } else {
-          // 다른 거 선택 → 기존 초기화 후 새로 선택
           selectedCats.clear();
           selectedCats.add(cat);
           document.querySelectorAll('.legend-item').forEach(e => e.style.opacity = '0.4');
@@ -540,7 +638,6 @@ function updateLegend() {
         }
       }
 
-      // 필터 적용
       if (selectedCats.size === 0) {
         filterByCategory(null);
       } else {
@@ -553,11 +650,9 @@ function updateLegend() {
 // ── 카테고리 필터 ────────────────────────────
 function filterByCategory(cats) {
   if (!cats || cats.length === 0) {
-    // 필터 해제 → 전체 표시
     state.nodes.forEach(n => n.hidden = false);
     state.links.forEach(l => l.hidden = false);
   } else {
-    // 선택된 카테고리만 표시
     state.nodes.forEach(n => n.hidden = !cats.includes(n.category));
     const vis = new Set(state.nodes.filter(n => !n.hidden).map(n => n.id));
     state.links.forEach(l => {
@@ -571,6 +666,8 @@ function filterByCategory(cats) {
 
 // ── 이벤트 리스너 ────────────────────────────
 document.getElementById('refresh-btn').addEventListener('click', loadData);
+document.getElementById('period-select').addEventListener('change', loadData);
+
 document.getElementById('search-btn').addEventListener('click', () => {
   filterByKeyword(document.getElementById('search-input').value);
 });
@@ -588,20 +685,18 @@ document.getElementById('detail-close').addEventListener('click', () => {
 });
 window.addEventListener('resize', () => { if(state.nodes.length) initGraph(); });
 
+// 사이드바 토글 (모바일)
+document.getElementById('sidebar-toggle').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.toggle('open');
+});
 
 // ── 소식 추가 기능 ────────────────────────────
+let selectedInputType = 'text';
 
-// 서버 주소 (로컬 테스트용 - 나중에 Render 주소로 변경)
-const SERVER_URL = 'https://insurance-news-graph.onrender.com';
-
-let selectedInputType = 'text';   // 현재 선택된 입력 방식
-
-// 모달 열기
 document.getElementById('add-news-btn').addEventListener('click', () => {
   document.getElementById('add-news-modal').style.display = 'flex';
 });
 
-// 모달 닫기
 document.getElementById('cancel-add-news').addEventListener('click', () => {
   document.getElementById('add-news-modal').style.display = 'none';
   document.getElementById('news-text-input').value = '';
@@ -610,7 +705,6 @@ document.getElementById('cancel-add-news').addEventListener('click', () => {
   document.getElementById('add-news-status').textContent = '';
 });
 
-// 탭 전환 (텍스트 / 이미지)
 document.getElementById('tab-text').addEventListener('click', () => {
   selectedInputType = 'text';
   document.getElementById('tab-text').style.background = 'var(--accent)';
@@ -635,7 +729,6 @@ document.getElementById('tab-image').addEventListener('click', () => {
   document.getElementById('text-input-area').style.display = 'none';
 });
 
-// 이미지 미리보기
 document.getElementById('news-image-input').addEventListener('change', (e) => {
   const file = e.target.files[0];
   const preview = document.getElementById('image-preview');
@@ -647,7 +740,6 @@ document.getElementById('news-image-input').addEventListener('change', (e) => {
   }
 });
 
-// 추가하기 버튼 클릭 → 서버로 전송
 document.getElementById('submit-add-news').addEventListener('click', async () => {
   const statusEl = document.getElementById('add-news-status');
   const submitBtn = document.getElementById('submit-add-news');
@@ -685,7 +777,6 @@ document.getElementById('submit-add-news').addEventListener('click', async () =>
       statusEl.textContent = `✅ ${result.message}`;
       statusEl.style.color = '#3fb950';
 
-      // 2초 후 모달 닫고 데이터 새로고침
       setTimeout(() => {
         document.getElementById('add-news-modal').style.display = 'none';
         document.getElementById('news-text-input').value = '';
@@ -693,7 +784,7 @@ document.getElementById('submit-add-news').addEventListener('click', async () =>
         document.getElementById('image-preview').innerHTML = '';
         statusEl.textContent = '';
         statusEl.style.color = 'var(--text-muted)';
-        loadData();   // 관계도 새로고침
+        loadData();
       }, 1500);
     } else {
       statusEl.textContent = `❌ ${result.message}`;
