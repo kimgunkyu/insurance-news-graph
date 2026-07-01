@@ -434,6 +434,32 @@ async def add_relationship(
         return {"status": "error", "message": "GitHub 저장 실패"}
 
 
+@app.get("/api/test-direct-access")
+def test_direct_access():
+    """
+    [테스트용 임시 엔드포인트 - 확인 후 삭제 예정]
+    Render 서버에서 보험저널 사이트에 직접 접근 가능한지 확인
+    """
+    test_url = "https://www.insjournal.co.kr/news/articleList.html?sc_sub_section_code=S2N1&view_type=sm"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
+
+    try:
+        res = requests.get(test_url, headers=headers, timeout=10)
+        return {
+            "status_code": res.status_code,
+            "success": res.status_code == 200,
+            "content_length": len(res.text),
+            "snippet": res.text[:500]
+        }
+    except Exception as e:
+        return {
+            "status_code": None,
+            "success": False,
+            "error": str(e)
+        }
+
 # ── HTML 파일 서빙 ────────────────────────────
 @app.get("/")
 def serve_index():
