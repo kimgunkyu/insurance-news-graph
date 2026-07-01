@@ -4,7 +4,8 @@
 # 브라우저(HTML 앱)랑 Python을 연결해주는 파일
 # ─────────────────────────────────────────────
 
-from fastapi import FastAPI, UploadFile, Form   # 웹 서버 프레임워크 + 파일업로드
+from fastapi import FastAPI, UploadFile, Form, File   # 웹 서버 프레임워크 + 파일업로드
+from typing import Optional
 from fastapi.middleware.cors import CORSMiddleware  # 브라우저 접근 허용
 from fastapi.staticfiles import StaticFiles    # HTML 파일 서빙
 from fastapi.responses import FileResponse     # HTML 파일 응답용
@@ -151,6 +152,136 @@ def update_github_file(path, data, sha=None):
 
 
 @app.post("/api/add-news")
+async def add_news(
+    text: Optional[str] = Form(None),           # 텍스트로 입력한 경우
+    image: Optional[UploadFile] = File(None),   # 이미지로 입력한 경우
+):
+    """
+    사용자가 텍스트나 이미지를 붙여넣으면
+    Claude가 분석해서 오늘 날짜의 analyzed 파일에 추가하는 API
+    """
+
+    # 1. 입력 내용 준비 (텍스트 또는 이미지)
+    content_blocks = []
+
+    if image:
+        image_bytes = await image.read()
+        image_b64 = base64.b64encode(image_bytes).decode('utf-8')
+        media_type = image.content_type or "image/png"
+
+        content_blocks.append({
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": media_type,
+                "data": image_b64,
+            }
+        })
+    elif not text:
+        return {"status": "error", "message": "텍스트나 이미지를 입력해주세요."}
+
+    # 2. 오늘 날짜의 기존 분석 파일 가져오기 (GitHub에서)
+    today = datetime.now().strftime("%Y_%m_%d")
+    filepath = f"data/analyzed_{today}.json"
+    existing_data, sha = get_github_file(filepath)
+
+    if not existing_data:
+        existing_data = {"articles": [], "relationships": []}
+
+    existing_titles = [a['title'] for a in existing_data['articles']]
+
+    # 3. Claude에게 보낼 프롬프트 구성
+    prompt = f"""
+당신은 한국 보험업계 전문 애널리스트입니다.
+
+기존에 이미 분석된 기사 제목들:
+{json.dumps(existing_titles, ensure_ascii=False)}
+
+{"위 이미지에 담긴 보험 관련 소식을 분석해줘." if image else f"아래 보험 관련 소식을 분석해줘:\\n\\n{text}"}
+
+다음 JSON 형식으로만 응답하세요 (마크다운, 설명 없이 순수 JSON만):
+{{
+  "title": "소식 제목",
+  "category": "규제/법률|손해율|상품/보험료/가격|전속/GA/채널|투자/재무/IFRS|건전성/K-ICS|보험시장|기타 중 하나",
+  "date": "YYYY-MM-DD (알 수 없으면 오늘 날짜 {datetime.now().strftime('%Y-%m-%d')})",
+  "source": "출처 (알 수 없으면 '수동입력')",
+  "summary": "5~7문장으로 상세 요약. 구체적 수치, 시행시기, 관련기관 포함.",
+  "keywords": ["키워드1", "키워드2", "키워드3"],
+  "related_titles": ["기존 기사 중 관련있는 제목들, 최대 3개"],
+  "relationship_labels": ["각 관련기사와의 관계를 5자 이내로, related_titles와 같은 순서로"]
+}}
+"""
+    content_blocks.append({"type": "text", "text": prompt})
+
+    try:
+        response = client.messages.create(
+            model="claude-haiku-4-5",
+            max_tokens=1500,
+            messages=[{"role": "user", "content": content_blocks}]
+        )
+
+        raw = response.content[0].text
+
+        # JSON 파싱 (여러 방법 시도)
+        parsed = None
+        for attempt in [
+            lambda: json.loads(raw),
+            lambda: json.loads(raw.replace("```json", "").replace("```", "").strip()),
+            lambda: json.loads(raw[raw.index('{'):raw.rindex('}')+1])
+        ]:
+            try:
+                parsed = attempt()
+                break
+            except Exception:
+                pass
+
+        if not parsed:
+            return {"status": "error", "message": "분석 결과 파싱 실패"}
+
+        # 4. 새 기사 ID 부여 (기존 기사 수 + 1)
+        new_id = f"a{len(existing_data['articles']) + 1}"
+        new_article = {
+            "id": new_id,
+            "title": parsed.get("title", ""),
+            "category": parsed.get("category", "기타"),
+            "date": parsed.get("date", datetime.now().strftime("%Y-%m-%d")),
+            "source": parsed.get("source", "수동입력"),
+            "summary": parsed.get("summary", ""),
+            "keywords": parsed.get("keywords", []),
+        }
+
+        # 5. 관계 추가 (관련 기사 제목 → id 매칭)
+        related_titles = parsed.get("related_titles", [])
+        relationship_labels = parsed.get("relationship_labels", [])
+
+        new_relationships = []
+        for i, rel_title in enumerate(related_titles):
+            matched = next((a for a in existing_data['articles'] if a['title'] == rel_title), None)
+            if matched:
+                label = relationship_labels[i] if i < len(relationship_labels) else "연관"
+                new_relationships.append({
+                    "source": new_id,
+                    "target": matched['id'],
+                    "label": label,
+                    "strength": 0.7
+                })
+
+        # 6. 기존 데이터에 추가
+        existing_data['articles'].append(new_article)
+        existing_data['relationships'].extend(new_relationships)
+
+        # 7. GitHub에 저장
+        success = update_github_file(filepath, existing_data, sha)
+
+        if success:
+            return {"status": "success", "message": f"'{new_article['title']}' 추가 완료!", "article": new_article}
+        else:
+            return {"status": "error", "message": "GitHub 저장 실패"}
+
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 @app.delete("/api/delete-news/{article_id}")
 def delete_news(article_id: str):
     """
