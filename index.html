@@ -13,9 +13,23 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--bg); color: var(--text); font-family: 'Apple SD Gothic Neo', -apple-system, sans-serif; height: 100vh; display: flex; overflow: hidden; }
 
-  /* 왼쪽 사이드바 */
-  #sidebar { position: absolute; top: 0; bottom: 0; left: 0; width: 300px; max-width: 85%; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; z-index: 25; transform: translateX(-100%); transition: transform 0.25s ease; box-shadow: 4px 0 16px rgba(0,0,0,0.1); }
-  #sidebar.open { transform: translateX(0); }
+  /* 앱 컨테이너: 사이드바 + 메인이 flex로 나란히, 사이드바 폭이 변하면 메인이 자동으로 넓어짐/좁아짐 */
+  #app-container { display: flex; width: 100%; height: 100%; position: relative; }
+
+  /* 왼쪽 사이드바 - 이제 문서 흐름에 참여 (밀어내는 방식) */
+  #sidebar {
+    width: 300px;
+    max-width: 85vw;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+    transition: width 0.25s ease, min-width 0.25s ease;
+  }
+  #sidebar.collapsed { width: 0; min-width: 0; border-right: none; }
+  #sidebar-inner { width: 300px; max-width: 85vw; height: 100%; display: flex; flex-direction: column; }
   #sidebar-header { padding: 16px 14px 12px 52px; border-bottom: 1px solid var(--border); }
   #sidebar-header h1 { font-size: 14px; font-weight: 700; }
   #sidebar-header p { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
@@ -43,7 +57,7 @@
   /* 소식 추가 버튼 */
   #add-news-btn { margin: 8px 12px 0; background: #fff; border: 1px solid #2da44e; color: #2da44e; border-radius: 6px; padding: 8px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
 
-  /* 소식 추가 모달 */
+  /* 소식 추가 모달 (body 최상위, 뷰포트 기준) */
   #add-news-modal { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.35); z-index:200; align-items:center; justify-content:center; }
   #add-news-modal.show { display:flex; }
   #add-news-modal .modal-box { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 20px; width: 420px; max-width: 90%; box-shadow: 0 12px 32px rgba(0,0,0,0.15); }
@@ -60,8 +74,8 @@
   .article-item .title { font-size: 12px; font-weight: 500; line-height: 1.4; }
   .article-item .meta { font-size: 10px; color: var(--text-muted); margin-top: 3px; }
 
-  /* 그래프 영역 */
-  #main { flex: 1; position: relative; overflow: hidden; background: #fff; }
+  /* 그래프 영역 - flex:1 이라서 사이드바 폭 변화에 맞춰 자동으로 늘어남/줄어듦 */
+  #main { flex: 1; position: relative; overflow: hidden; background: #fff; min-width: 0; }
   #graph-canvas { width: 100%; height: 100%; }
 
   /* 줌 버튼 */
@@ -69,7 +83,7 @@
   .ctrl-btn { background: rgba(255,255,255,0.95); border: 1px solid var(--border); color: var(--text-muted); border-radius: 6px; width: 30px; height: 30px; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
   .ctrl-btn:hover { color: var(--text); border-color: var(--accent); }
 
-  /* 사이드바 토글 버튼 (모바일 대응) */
+  /* 사이드바 토글 버튼 */
   #sidebar-toggle { position: absolute; top: 14px; left: 14px; z-index: 30; background: rgba(255,255,255,0.95); border: 1px solid var(--border); color: var(--text); border-radius: 6px; width: 34px; height: 34px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
 
   /* 범례 */
@@ -129,115 +143,124 @@
   .article-link { display: block; margin-top: 12px; font-size: 11px; color: var(--accent); text-decoration: none; }
   .article-link:hover { text-decoration: underline; }
 
-  /* 모바일 대응 */
+  /* 모바일 대응: 좁은 화면에서는 다시 오버레이 방식으로 (그래프가 사이드바에 밀리면 너무 좁아지니까) */
   @media (max-width: 768px) {
-  #sidebar { width: 85%; max-width: 320px; }
-  #detail-panel { width: 90%; }
+    #sidebar { position: absolute; top: 0; bottom: 0; left: 0; z-index: 25; box-shadow: 4px 0 16px rgba(0,0,0,0.1); transition: transform 0.25s ease; width: 85vw; }
+    #sidebar.collapsed { transform: translateX(-100%); width: 85vw; }
+    #sidebar:not(.collapsed) { transform: translateX(0); }
+    #detail-panel { width: 90%; }
   }
 </style>
 </head>
 <body>
 
-<!-- 사이드바 토글 버튼 (모바일) -->
-<button id="sidebar-toggle">☰</button>
+<div id="app-container">
 
-<!-- 왼쪽 사이드바 -->
-<div id="sidebar">
-  <div id="sidebar-header">
-    <h1>📰 보험 뉴스 관계도</h1>
-    <p>Insurance News Knowledge Graph</p>
-  </div>
+  <!-- 사이드바 토글 버튼 -->
+  <button id="sidebar-toggle">☰</button>
 
-  <div id="period-bar">
-    <select id="period-select">
-      <option value="1">오늘</option>
-      <option value="7" selected>최근 7일</option>
-      <option value="14">최근 14일</option>
-      <option value="30">최근 30일</option>
-      <option value="all">전체 기간</option>
-    </select>
-  </div>
-
-  <div id="search-bar">
-    <input type="text" id="search-input" placeholder="키워드 검색 (예: 수수료, 실손보험)" />
-    <button id="search-btn">검색</button>
-  </div>
-  <button id="refresh-btn">
-    <div class="spinner"></div>
-    <span>🔄 최신 데이터 불러오기</span>
-  </button>
-  <button id="add-news-btn">➕ 소식 추가하기</button>
-
-  <!-- 소식 추가 모달 -->
-  <div id="add-news-modal">
-    <div class="modal-box">
-      <h3 style="font-size:14px; margin-bottom:14px;">📰 소식 추가하기</h3>
-
-      <div style="display:flex; gap:6px; margin-bottom:12px;">
-        <button id="tab-text" class="input-tab active" style="border:1px solid var(--accent); background:var(--accent); color:#fff;">텍스트</button>
-        <button id="tab-image" class="input-tab" style="border:1px solid var(--border); background:transparent; color:var(--text-muted);">이미지</button>
+  <!-- 왼쪽 사이드바 -->
+  <div id="sidebar">
+    <div id="sidebar-inner">
+      <div id="sidebar-header">
+        <h1>📰 보험 뉴스 관계도</h1>
+        <p>Insurance News Knowledge Graph</p>
       </div>
 
-      <div id="text-input-area">
-        <textarea id="news-text-input" placeholder="기사 내용이나 소식을 붙여넣으세요..." style="width:100%; height:140px; background:var(--surface); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:12px; padding:10px; resize:vertical; outline:none;"></textarea>
+      <div id="period-bar">
+        <select id="period-select">
+          <option value="1">오늘</option>
+          <option value="7" selected>최근 7일</option>
+          <option value="14">최근 14일</option>
+          <option value="30">최근 30일</option>
+          <option value="all">전체 기간</option>
+        </select>
       </div>
 
-      <div id="image-input-area" style="display:none;">
-        <input type="file" id="news-image-input" accept="image/*" style="width:100%; font-size:12px; color:var(--text-muted);" />
-        <div id="image-preview" style="margin-top:8px;"></div>
+      <div id="search-bar">
+        <input type="text" id="search-input" placeholder="키워드 검색 (예: 수수료, 실손보험)" />
+        <button id="search-btn">검색</button>
       </div>
+      <button id="refresh-btn">
+        <div class="spinner"></div>
+        <span>🔄 최신 데이터 불러오기</span>
+      </button>
+      <button id="add-news-btn">➕ 소식 추가하기</button>
 
-      <div style="display:flex; gap:8px; margin-top:14px;">
-        <button id="cancel-add-news" style="flex:1; padding:8px; font-size:12px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--text-muted); cursor:pointer;">취소</button>
-        <button id="submit-add-news" style="flex:1; padding:8px; font-size:12px; border-radius:6px; border:none; background:var(--accent); color:#fff; cursor:pointer; font-weight:600;">추가하기</button>
-      </div>
-
-      <div id="add-news-status" style="margin-top:10px; font-size:11px; color:var(--text-muted); text-align:center;"></div>
+      <div id="article-list"></div>
     </div>
   </div>
-  <div id="article-list"></div>
+
+  <!-- 그래프 영역 -->
+  <div id="main">
+    <svg id="graph-canvas"></svg>
+    <div id="graph-controls">
+      <button class="ctrl-btn" id="zoom-in">+</button>
+      <button class="ctrl-btn" id="zoom-out">−</button>
+      <button class="ctrl-btn" id="zoom-reset">⊙</button>
+    </div>
+    <div id="legend">
+      <div class="legend-title">카테고리</div>
+      <div id="legend-items"></div>
+    </div>
+
+    <div id="tooltip">
+      <div class="tt-title" id="tt-title"></div>
+      <div class="tt-meta" id="tt-meta"></div>
+    </div>
+    <div id="relation-mode-bar">
+      <span id="relation-mode-text">Ctrl+클릭으로 연결할 기사 2개를 선택하세요</span>
+      <button id="relation-mode-cancel" style="padding:4px 10px; font-size:11px; border-radius:5px; border:1px solid var(--border); background:transparent; color:var(--text-muted); cursor:pointer;">취소</button>
+    </div>
+    <div id="status">데이터 불러오는 중...</div>
+    <div id="empty-state">
+      <div class="icon">🕸️</div>
+      <p>데이터가 없습니다</p>
+    </div>
+  </div>
+
+  <!-- 오른쪽 상세 패널 -->
+  <div id="detail-panel">
+    <button id="detail-close">✕</button>
+    <div id="detail-content">
+      <span class="detail-tag" id="detail-tag"></span>
+      <div id="detail-title"></div>
+      <div id="detail-meta"></div>
+      <div class="section-label">AI 요약</div>
+      <div id="detail-summary"></div>
+      <div class="section-label">연관 기사</div>
+      <div id="rel-list"></div>
+      <a id="detail-link" class="article-link" target="_blank">🔗 원문 보기</a>
+    </div>
+  </div>
+
 </div>
 
-<!-- 그래프 영역 -->
-<div id="main">
-  <svg id="graph-canvas"></svg>
-  <div id="graph-controls">
-    <button class="ctrl-btn" id="zoom-in">+</button>
-    <button class="ctrl-btn" id="zoom-out">−</button>
-    <button class="ctrl-btn" id="zoom-reset">⊙</button>
-  </div>
-  <div id="legend">
-    <div class="legend-title">카테고리</div>
-    <div id="legend-items"></div>
-  </div>
+<!-- 소식 추가 모달 (body 최상위, sidebar 밖으로 이동해서 뷰포트 정중앙에 뜨도록) -->
+<div id="add-news-modal">
+  <div class="modal-box">
+    <h3 style="font-size:14px; margin-bottom:14px;">📰 소식 추가하기</h3>
 
-  <div id="tooltip">
-    <div class="tt-title" id="tt-title"></div>
-    <div class="tt-meta" id="tt-meta"></div>
-  </div>
-  <div id="relation-mode-bar">
-    <span id="relation-mode-text">Ctrl+클릭으로 연결할 기사 2개를 선택하세요</span>
-    <button id="relation-mode-cancel" style="padding:4px 10px; font-size:11px; border-radius:5px; border:1px solid var(--border); background:transparent; color:var(--text-muted); cursor:pointer;">취소</button>
-  </div>
-  <div id="status">데이터 불러오는 중...</div>
-  <div id="empty-state">
-    <div class="icon">🕸️</div>
-    <p>데이터가 없습니다</p>
-  </div>
-</div>
+    <div style="display:flex; gap:6px; margin-bottom:12px;">
+      <button id="tab-text" class="input-tab active" style="border:1px solid var(--accent); background:var(--accent); color:#fff;">텍스트</button>
+      <button id="tab-image" class="input-tab" style="border:1px solid var(--border); background:transparent; color:var(--text-muted);">이미지</button>
+    </div>
 
-<!-- 오른쪽 상세 패널 -->
-<div id="detail-panel">
-  <button id="detail-close">✕</button>
-  <div id="detail-content">
-    <span class="detail-tag" id="detail-tag"></span>
-    <div id="detail-title"></div>
-    <div id="detail-meta"></div>
-    <div class="section-label">AI 요약</div>
-    <div id="detail-summary"></div>
-    <div class="section-label">연관 기사</div>
-    <div id="rel-list"></div>
-    <a id="detail-link" class="article-link" target="_blank">🔗 원문 보기</a>
+    <div id="text-input-area">
+      <textarea id="news-text-input" placeholder="기사 내용이나 소식을 붙여넣으세요..." style="width:100%; height:140px; background:var(--surface); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:12px; padding:10px; resize:vertical; outline:none;"></textarea>
+    </div>
+
+    <div id="image-input-area" style="display:none;">
+      <input type="file" id="news-image-input" accept="image/*" style="width:100%; font-size:12px; color:var(--text-muted);" />
+      <div id="image-preview" style="margin-top:8px;"></div>
+    </div>
+
+    <div style="display:flex; gap:8px; margin-top:14px;">
+      <button id="cancel-add-news" style="flex:1; padding:8px; font-size:12px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--text-muted); cursor:pointer;">취소</button>
+      <button id="submit-add-news" style="flex:1; padding:8px; font-size:12px; border-radius:6px; border:none; background:var(--accent); color:#fff; cursor:pointer; font-weight:600;">추가하기</button>
+    </div>
+
+    <div id="add-news-status" style="margin-top:10px; font-size:11px; color:var(--text-muted); text-align:center;"></div>
   </div>
 </div>
 
@@ -687,10 +710,19 @@ document.getElementById('detail-close').addEventListener('click', () => {
   renderSidebar();
   resetHighlight();
 });
+
+// 창 크기 조절 시 그래프 다시 그리기
 window.addEventListener('resize', () => { if(state.nodes.length) initGraph(); });
 
+// 사이드바 토글: 폭이 변하면서 transitionend에서 그래프를 다시 그림 (부드럽게 리사이즈되도록)
 document.getElementById('sidebar-toggle').addEventListener('click', () => {
-  document.getElementById('sidebar').classList.toggle('open');
+  const sidebar = document.getElementById('sidebar');
+  sidebar.classList.toggle('collapsed');
+});
+document.getElementById('sidebar').addEventListener('transitionend', (e) => {
+  if (e.propertyName === 'width' || e.propertyName === 'transform') {
+    if (state.nodes.length) initGraph();
+  }
 });
 
 // ── 관계 수동 추가 모드 ───────────────────────
@@ -707,7 +739,6 @@ function toggleNodeForRelation(nodeId) {
     relationModeNodes.push(nodeId);
   }
 
-  // 선택된 노드 하이라이트
   if (state.g) {
     state.g.selectAll('circle')
       .attr('stroke-width', d => relationModeNodes.includes(d.id) ? 4 : 1.5)
@@ -777,7 +808,6 @@ let selectedInputType = 'text';
 document.getElementById('add-news-btn').addEventListener('click', () => {
   document.getElementById('add-news-modal').classList.add('show');
 });
-
 
 document.getElementById('cancel-add-news').addEventListener('click', () => {
   document.getElementById('add-news-modal').classList.remove('show');
@@ -882,7 +912,6 @@ document.getElementById('submit-add-news').addEventListener('click', async () =>
 });
 
 // ── 앱 시작 시 자동으로 데이터 불러오기 ──────
-document.getElementById('sidebar').classList.add('open');
 loadData();
 </script>
 </body>
