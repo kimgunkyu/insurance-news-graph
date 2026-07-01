@@ -104,20 +104,37 @@ def get_news():
 @app.post("/api/fetch")
 def fetch_and_analyze():
     """
-    버튼 누르면 크롤링 + 분석을 바로 실행하는 API
+    크롤링 + 분석 + GitHub 저장까지 한번에 수행하는 API
+    (GitHub Actions가 매일 이 API를 호출함)
     """
     print("🚀 크롤링 + 분석 시작!")
+
+    # 1. 뉴스 크롤링
     articles = crawl_all()
     if not articles:
         return {"status": "error", "message": "크롤링 실패"}
+
+    # 2. Claude AI 분석 (로컬 파일 기준으로 병합)
     analyzed = analyze_articles(articles)
     if not analyzed:
         return {"status": "error", "message": "분석 실패"}
-    filename = save_analyzed_data(analyzed)
+
+    # 3. 로컬 파일로 저장 (Render 서버 안)
+    save_analyzed_data(analyzed)
+
+    # 4. GitHub에도 반영 (analyze_articles가 만든 최종 결과를 그대로 업로드)
+    existing_data, sha = get_github_file(UNIFIED_PATH)
+    success = update_github_file(
+        UNIFIED_PATH, analyzed, sha,
+        message=f"자동 크롤링 업데이트: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    )
+
+    if not success:
+        return {"status": "error", "message": "GitHub 저장 실패"}
+
     return {
         "status": "success",
         "message": f"완료! 전체 기사 {len(analyzed['articles'])}개",
-        "filename": filename
     }
 
 
