@@ -108,6 +108,37 @@
     <div class="spinner"></div>
     <span>🔄 최신 데이터 불러오기</span>
   </button>
+  <button id="add-news-btn" style="margin: 8px 12px 0; background: transparent; border: 1px solid #3fb950; color: #3fb950; border-radius: 6px; padding: 8px 12px; font-size: 12px; font-weight: 600; cursor: pointer;">
+    ➕ 소식 추가하기
+  </button>
+
+  <!-- 소식 추가 모달 -->
+  <div id="add-news-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:200; align-items:center; justify-content:center;">
+    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; width: 420px; max-width: 90%;">
+      <h3 style="font-size:14px; margin-bottom:14px;">📰 소식 추가하기</h3>
+
+      <div style="display:flex; gap:6px; margin-bottom:12px;">
+        <button id="tab-text" class="input-tab active" style="flex:1; padding:6px; font-size:12px; border-radius:6px; border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer;">텍스트</button>
+        <button id="tab-image" class="input-tab" style="flex:1; padding:6px; font-size:12px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--text-muted); cursor:pointer;">이미지</button>
+      </div>
+
+      <div id="text-input-area">
+        <textarea id="news-text-input" placeholder="기사 내용이나 소식을 붙여넣으세요..." style="width:100%; height:140px; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:12px; padding:10px; resize:vertical; outline:none;"></textarea>
+      </div>
+
+      <div id="image-input-area" style="display:none;">
+        <input type="file" id="news-image-input" accept="image/*" style="width:100%; font-size:12px; color:var(--text-muted);" />
+        <div id="image-preview" style="margin-top:8px;"></div>
+      </div>
+
+      <div style="display:flex; gap:8px; margin-top:14px;">
+        <button id="cancel-add-news" style="flex:1; padding:8px; font-size:12px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--text-muted); cursor:pointer;">취소</button>
+        <button id="submit-add-news" style="flex:1; padding:8px; font-size:12px; border-radius:6px; border:none; background:var(--accent); color:#fff; cursor:pointer; font-weight:600;">추가하기</button>
+      </div>
+
+      <div id="add-news-status" style="margin-top:10px; font-size:11px; color:var(--text-muted); text-align:center;"></div>
+    </div>
+  </div>
   <div id="article-list"></div>
 </div>
 
@@ -522,6 +553,126 @@ document.getElementById('detail-close').addEventListener('click', () => {
   resetHighlight();
 });
 window.addEventListener('resize', () => { if(state.nodes.length) initGraph(); });
+
+
+// ── 소식 추가 기능 ────────────────────────────
+
+// 서버 주소 (로컬 테스트용 - 나중에 Render 주소로 변경)
+const SERVER_URL = 'https://insurance-news-graph.onrender.com';
+
+let selectedInputType = 'text';   // 현재 선택된 입력 방식
+
+// 모달 열기
+document.getElementById('add-news-btn').addEventListener('click', () => {
+  document.getElementById('add-news-modal').style.display = 'flex';
+});
+
+// 모달 닫기
+document.getElementById('cancel-add-news').addEventListener('click', () => {
+  document.getElementById('add-news-modal').style.display = 'none';
+  document.getElementById('news-text-input').value = '';
+  document.getElementById('news-image-input').value = '';
+  document.getElementById('image-preview').innerHTML = '';
+  document.getElementById('add-news-status').textContent = '';
+});
+
+// 탭 전환 (텍스트 / 이미지)
+document.getElementById('tab-text').addEventListener('click', () => {
+  selectedInputType = 'text';
+  document.getElementById('tab-text').style.background = 'var(--accent)';
+  document.getElementById('tab-text').style.color = '#fff';
+  document.getElementById('tab-text').style.borderColor = 'var(--accent)';
+  document.getElementById('tab-image').style.background = 'transparent';
+  document.getElementById('tab-image').style.color = 'var(--text-muted)';
+  document.getElementById('tab-image').style.borderColor = 'var(--border)';
+  document.getElementById('text-input-area').style.display = 'block';
+  document.getElementById('image-input-area').style.display = 'none';
+});
+
+document.getElementById('tab-image').addEventListener('click', () => {
+  selectedInputType = 'image';
+  document.getElementById('tab-image').style.background = 'var(--accent)';
+  document.getElementById('tab-image').style.color = '#fff';
+  document.getElementById('tab-image').style.borderColor = 'var(--accent)';
+  document.getElementById('tab-text').style.background = 'transparent';
+  document.getElementById('tab-text').style.color = 'var(--text-muted)';
+  document.getElementById('tab-text').style.borderColor = 'var(--border)';
+  document.getElementById('image-input-area').style.display = 'block';
+  document.getElementById('text-input-area').style.display = 'none';
+});
+
+// 이미지 미리보기
+document.getElementById('news-image-input').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  const preview = document.getElementById('image-preview');
+  if (file) {
+    const url = URL.createObjectURL(file);
+    preview.innerHTML = `<img src="${url}" style="max-width:100%; border-radius:6px; margin-top:6px;" />`;
+  } else {
+    preview.innerHTML = '';
+  }
+});
+
+// 추가하기 버튼 클릭 → 서버로 전송
+document.getElementById('submit-add-news').addEventListener('click', async () => {
+  const statusEl = document.getElementById('add-news-status');
+  const submitBtn = document.getElementById('submit-add-news');
+
+  const formData = new FormData();
+
+  if (selectedInputType === 'text') {
+    const text = document.getElementById('news-text-input').value.trim();
+    if (!text) {
+      statusEl.textContent = '⚠️ 텍스트를 입력해주세요.';
+      return;
+    }
+    formData.append('text', text);
+  } else {
+    const fileInput = document.getElementById('news-image-input');
+    if (!fileInput.files[0]) {
+      statusEl.textContent = '⚠️ 이미지를 선택해주세요.';
+      return;
+    }
+    formData.append('image', fileInput.files[0]);
+  }
+
+  statusEl.textContent = '🤖 AI가 분석 중입니다... (최대 1분 소요)';
+  submitBtn.disabled = true;
+  submitBtn.style.opacity = '0.5';
+
+  try {
+    const res = await fetch(`${SERVER_URL}/api/add-news`, {
+      method: 'POST',
+      body: formData,
+    });
+    const result = await res.json();
+
+    if (result.status === 'success') {
+      statusEl.textContent = `✅ ${result.message}`;
+      statusEl.style.color = '#3fb950';
+
+      // 2초 후 모달 닫고 데이터 새로고침
+      setTimeout(() => {
+        document.getElementById('add-news-modal').style.display = 'none';
+        document.getElementById('news-text-input').value = '';
+        document.getElementById('news-image-input').value = '';
+        document.getElementById('image-preview').innerHTML = '';
+        statusEl.textContent = '';
+        statusEl.style.color = 'var(--text-muted)';
+        loadData();   // 관계도 새로고침
+      }, 1500);
+    } else {
+      statusEl.textContent = `❌ ${result.message}`;
+      statusEl.style.color = '#f78166';
+    }
+  } catch (e) {
+    statusEl.textContent = `❌ 서버 연결 실패: ${e.message}`;
+    statusEl.style.color = '#f78166';
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.style.opacity = '1';
+  }
+});
 
 // ── 앱 시작 시 자동으로 데이터 불러오기 ──────
 loadData();
