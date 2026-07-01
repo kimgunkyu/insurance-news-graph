@@ -349,7 +349,9 @@ function applyPeriodFilter() {
 // ── 사이드바 기사 목록 렌더링 ────────────────
 function renderSidebar() {
   const list = document.getElementById('article-list');
-  const visible = state.nodes.filter(n => !n.hidden);
+  const visible = state.nodes.filter(n => !n.hidden)
+    .slice()
+    .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   list.innerHTML = visible.map(n => {
     const c = COLORS[n.category] || COLORS['기타'];
     return `<div class="article-item ${n.id === state.selectedId ? 'active' : ''}" data-id="${n.id}">
