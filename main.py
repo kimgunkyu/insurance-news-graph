@@ -438,45 +438,75 @@ async def add_relationship(
 def test_direct_access():
     """
     [테스트용 임시 엔드포인트 - 확인 후 삭제 예정]
-    Render 서버에서 보험저널 여러 탭에 직접 접근 + 파싱 테스트
+    보험저널 목록 페이지 파싱 + 카테고리/날짜 필터링 테스트
     """
+    import re
     from bs4 import BeautifulSoup
+    from datetime import datetime, timedelta
 
-    sections = [
-        {"name": "정책", "url": "https://www.insjournal.co.kr/news/articleList.html?sc_sub_section_code=S2N1&view_type=sm"},
-        {"name": "손보", "url": "https://www.insjournal.co.kr/news/articleList.html?sc_sub_section_code=S2N3&view_type=sm"},
-        {"name": "GA", "url": "https://www.insjournal.co.kr/news/articleList.html?sc_sub_section_code=S2N16&view_type=sm"},
-        {"name": "상품", "url": "https://www.insjournal.co.kr/news/articleList.html?sc_sub_section_code=S2N17&view_type=sm"},
-        {"name": "경제종합", "url": "https://www.insjournal.co.kr/news/articleList.html?sc_sub_section_code=S2N20&view_type=sm"},
-    ]
+    BASE_URL = "https://www.insjournal.co.kr"
+    HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    TARGET_CATEGORIES = {
+        "정책", "손보", "GA", "상품",
+        "핫 이상품", "상품 전략", "올해의 보험상품", "비교추천", "상품비교",
+        "기획", "특집", "기자의 눈", "단독",
+        "실적 · 통계 분석"
     }
 
-    results = {}
+    url = f"{BASE_URL}/news/articleList.html?view_type=sm&page=1"
 
-    for section in sections:
-        try:
-            res = requests.get(section["url"], headers=headers, timeout=10)
-            soup = BeautifulSoup(res.text, 'html.parser')
-            items = soup.select('ul.type1 li')[:5]  # 상위 5개만 테스트
+    try:
+        res = requests.get(url, headers=HEADERS, timeout=15)
+        soup = BeautifulSoup(res.text, 'html.parser')
 
-            titles = []
-            for item in items:
-                title_tag = item.select_one('.titles')
-                if title_tag:
-                    titles.append(title_tag.get_text(strip=True))
+        articles = []
+        seen_idx = set()
 
-            results[section["name"]] = {
-                "status_code": res.status_code,
-                "found_items": len(items),
-                "titles": titles
-            }
-        except Exception as e:
-            results[section["name"]] = {"error": str(e)}
+        # 제목 링크를 담고 있을 만한 태그들을 폭넓게 탐색
+        for tag_name in ['h2', 'h3', 'h4']:
+            for h in soup.find_all(tag_name):
+                a = h.find('a', href=True)
+                if not a or 'articleView.html' not in a['href']:
+                    continue
+                idx_match = re.search(r'idxno=(\d+)', a['href'])
+                if not idx_match:
+                    continue
+                idxno = idx_match.group(1)
+                if idxno in seen_idx:
+                    continue
+                seen_idx.add(idxno)
 
-    return results
+                title = a.get_text(strip=True)
+                container = h.find_parent('li') or h.parent
+                info_text = container.get_text(separator='|', strip=True) if container else ''
+
+                date_match = re.search(r'(\d{2}\.\d{2})\s+(\d{2}:\d{2})', info_text)
+                list_date = date_match.group(0) if date_match else ''
+
+                found_category = None
+                for token in info_text.split('|'):
+                    token = token.strip()
+                    if token in TARGET_CATEGORIES:
+                        found_category = token
+                        break
+
+                articles.append({
+                    'idxno': idxno,
+                    'title': title,
+                    'tag_used': tag_name,
+                    'list_date': list_date,
+                    'category_tag': found_category,
+                })
+
+        return {
+            "status_code": res.status_code,
+            "total_found": len(articles),
+            "sample": articles[:15]
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
 
 # ── HTML 파일 서빙 ────────────────────────────
 @app.get("/")
