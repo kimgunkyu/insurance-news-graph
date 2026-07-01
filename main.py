@@ -171,16 +171,8 @@ async def add_news(
     if not existing_data:
         existing_data = {"articles": [], "relationships": []}
 
-    # 2. 최근 30일치 기존 기사만 추려서 관계 분석 참고자료로 사용
-    cutoff = datetime.now() - timedelta(days=RELATION_WINDOW_DAYS)
-    recent_existing = []
-    for a in existing_data['articles']:
-        try:
-            article_date = datetime.strptime(a['date'], '%Y-%m-%d')
-            if article_date >= cutoff:
-                recent_existing.append(a)
-        except (ValueError, KeyError):
-            continue
+    # 2. 전체 기존 기사를 관계 분석 참고자료로 사용
+    recent_existing = existing_data['articles']
 
     recent_text = "\n".join([f"- {a['id']}: {a['title']} ({a['category']})" for a in recent_existing])
 

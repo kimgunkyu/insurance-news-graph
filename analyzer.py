@@ -316,16 +316,8 @@ def analyze_articles(articles):
         print("모두 이미 존재하는 기사라 추가할 내용이 없습니다.")
         return unified
 
-    # 4. 최근 30일치 기존 기사 추출 (관계 분석용 참고자료)
-    cutoff = datetime.now() - timedelta(days=RELATION_WINDOW_DAYS)
-    recent_existing = []
-    for a in unified['articles']:
-        try:
-            article_date = datetime.strptime(a['date'], '%Y-%m-%d')
-            if article_date >= cutoff:
-                recent_existing.append(a)
-        except (ValueError, KeyError):
-            continue
+    # 4. 전체 기존 기사를 관계 분석용 참고자료로 사용
+    recent_existing = unified['articles']
 
     # 5. 관계 분석 (새 기사끼리 + 새 기사 vs 최근 기존 기사, 사용자 피드백 반영)
     raw_relationships = analyze_relationships(new_articles_raw, recent_existing)
