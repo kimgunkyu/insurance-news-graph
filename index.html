@@ -537,6 +537,7 @@ function initGraph() {
     .on('mouseout', function() { d3.select(this).attr('stroke', '#d0d7de').attr('opacity', 0.7); });
 
   const linkLabel = g.append('g').selectAll('text').data(visLinks).join('text')
+    .attr('class', 'link-label-text')
     .attr('font-size', 9).attr('fill', '#8c959f').attr('text-anchor', 'middle')
     .text(d => d.label||'');
 
@@ -608,16 +609,43 @@ function initGraph() {
 // ── 선택된 노드 하이라이트 ───────────────────
 function highlightGraph(id) {
   if (!state.g) return;
-  const conn = new Set([id]);
+
+  // 인접 리스트 만들기 (각 노드가 누구랑 연결되어 있는지)
+  const adjacency = {};
   state.links.forEach(l => {
-    const s=l.source?.id||l.source, t=l.target?.id||l.target;
-    if(s===id) conn.add(t);
-    if(t===id) conn.add(s);
+    const s = l.source?.id||l.source, t = l.target?.id||l.target;
+    if (!adjacency[s]) adjacency[s] = [];
+    if (!adjacency[t]) adjacency[t] = [];
+    adjacency[s].push(t);
+    adjacency[t].push(s);
   });
-  state.g.selectAll('circle').attr('opacity', d => conn.has(d.id) ? 1 : 0.15).attr('stroke-width', d => d.id===id ? 3 : 1.5);
+
+  // BFS로 선택한 노드가 속한 전체 연결망(connected component) 찾기
+  const conn = new Set([id]);
+  const queue = [id];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    const neighbors = adjacency[current] || [];
+    neighbors.forEach(n => {
+      if (!conn.has(n)) {
+        conn.add(n);
+        queue.push(n);
+      }
+    });
+  }
+
+  state.g.selectAll('circle')
+    .attr('opacity', d => conn.has(d.id) ? 1 : 0.12)
+    .attr('stroke-width', d => d.id===id ? 3.5 : (conn.has(d.id) ? 2 : 1.5));
+
   state.g.selectAll('line').attr('opacity', d => {
     const s=d.source?.id||d.source, t=d.target?.id||d.target;
-    return (s===id||t===id) ? 1 : 0.08;
+    return (conn.has(s) && conn.has(t)) ? 0.9 : 0.05;
+  });
+
+  state.g.selectAll('.link-label-text').attr('opacity', d => {
+    const s=d.source?.id||d.source, t=d.target?.id||d.target;
+    return (conn.has(s) && conn.has(t)) ? 1 : 0.05;
   });
 }
 
