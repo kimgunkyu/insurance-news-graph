@@ -82,6 +82,26 @@
   #tooltip .tt-title { font-weight: 600; margin-bottom: 3px; }
   #tooltip .tt-meta { color: var(--text-muted); font-size: 10px; }
 
+  /* 관계 수동 추가 모드 바 */
+  #relation-mode-bar {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    display: none;
+    align-items: center;
+    gap: 10px;
+    z-index: 999;
+    white-space: nowrap;
+  }
+  #relation-mode-bar.show { display: flex; }
+
   /* 상태바 */
   #status { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); background: rgba(255,255,255,0.95); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 11px; color: var(--text-muted); pointer-events: none; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
 
@@ -189,11 +209,12 @@
     <div class="legend-title">카테고리</div>
     <div id="legend-items"></div>
   </div>
+
   <div id="tooltip">
     <div class="tt-title" id="tt-title"></div>
     <div class="tt-meta" id="tt-meta"></div>
   </div>
-    <div id="relation-mode-bar" style="position:absolute; bottom:50px; left:50%; transform:translateX(-50%); background:#fff; border:1px solid var(--border); border-radius:10px; padding:10px 14px; font-size:12px; box-shadow:0 4px 16px rgba(0,0,0,0.12); display:none; align-items:center; gap:10px; z-index:50;"></div>
+  <div id="relation-mode-bar">
     <span id="relation-mode-text">Ctrl+클릭으로 연결할 기사 2개를 선택하세요</span>
     <button id="relation-mode-cancel" style="padding:4px 10px; font-size:11px; border-radius:5px; border:1px solid var(--border); background:transparent; color:var(--text-muted); cursor:pointer;">취소</button>
   </div>
@@ -497,6 +518,7 @@ function initGraph() {
   const nodeG = g.append('g').selectAll('g').data(visNodes).join('g')
     .attr('cursor', 'pointer')
     .call(d3.drag()
+      .filter(e => !e.ctrlKey && !e.metaKey)
       .on('start', (e,d) => { if(!e.active) sim.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; })
       .on('drag', (e,d) => { d.fx=e.x; d.fy=e.y; })
       .on('end', (e,d) => { if(!e.active) sim.alphaTarget(0); d.fx=null; d.fy=null; }))
@@ -527,9 +549,9 @@ function initGraph() {
     .attr('r', d => rScale(degree[d.id]||0))
     .attr('fill', d => COLORS[d.category]||COLORS['기타'])
     .attr('fill-opacity', 0.88)
-    .attr('stroke', d => COLORS[d.category]||COLORS['기타'])
-    .attr('stroke-width', 1.5)
-    .attr('stroke-opacity', 0.5)
+    .attr('stroke', d => relationModeNodes.includes(d.id) ? '#cf222e' : (COLORS[d.category]||COLORS['기타']))
+    .attr('stroke-width', d => relationModeNodes.includes(d.id) ? 4 : 1.5)
+    .attr('stroke-opacity', 0.7)
     .attr('filter', d => (degree[d.id]||0) >= 3 ? 'url(#glow)' : null);
 
   nodeG.append('text')
@@ -576,7 +598,10 @@ function highlightGraph(id) {
 
 function resetHighlight() {
   if (!state.g) return;
-  state.g.selectAll('circle').attr('opacity', 0.88).attr('stroke-width', 1.5);
+  state.g.selectAll('circle')
+    .attr('opacity', 0.88)
+    .attr('stroke-width', 1.5)
+    .attr('stroke', d => COLORS[d.category]||COLORS['기타']);
   state.g.selectAll('line').attr('opacity', 0.7);
 }
 
@@ -666,6 +691,7 @@ window.addEventListener('resize', () => { if(state.nodes.length) initGraph(); })
 document.getElementById('sidebar-toggle').addEventListener('click', () => {
   document.getElementById('sidebar').classList.toggle('open');
 });
+
 // ── 관계 수동 추가 모드 ───────────────────────
 let relationModeNodes = [];   // Ctrl+클릭으로 선택된 노드 id들 (최대 2개)
 
@@ -691,13 +717,13 @@ function toggleNodeForRelation(nodeId) {
   const text = document.getElementById('relation-mode-text');
 
   if (relationModeNodes.length === 0) {
-    bar.style.display = 'none';
+    bar.classList.remove('show');
   } else if (relationModeNodes.length === 1) {
-    bar.style.display = 'flex';
+    bar.classList.add('show');
     const n = state.nodes.find(n => n.id === relationModeNodes[0]);
     text.textContent = `"${n?.title?.slice(0,20)}..." 선택됨. 연결할 기사를 하나 더 Ctrl+클릭하세요`;
   } else {
-    bar.style.display = 'flex';
+    bar.classList.add('show');
     const n1 = state.nodes.find(n => n.id === relationModeNodes[0]);
     const n2 = state.nodes.find(n => n.id === relationModeNodes[1]);
     text.innerHTML = `"${n1?.title?.slice(0,15)}..." ↔ "${n2?.title?.slice(0,15)}..." `;
@@ -728,7 +754,7 @@ async function createRelation(id1, id2) {
 
     if (result.status === 'success') {
       relationModeNodes = [];
-      document.getElementById('relation-mode-bar').style.display = 'none';
+      document.getElementById('relation-mode-bar').classList.remove('show');
       setTimeout(() => loadData(), 800);
     } else {
       alert('관계 추가 실패: ' + result.message);
@@ -740,7 +766,7 @@ async function createRelation(id1, id2) {
 
 document.getElementById('relation-mode-cancel').addEventListener('click', () => {
   relationModeNodes = [];
-  document.getElementById('relation-mode-bar').style.display = 'none';
+  document.getElementById('relation-mode-bar').classList.remove('show');
   resetHighlight();
 });
 
