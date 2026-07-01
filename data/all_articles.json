@@ -1429,6 +1429,20 @@
       "target": "a34",
       "label": "보험사기적발",
       "strength": 0.8
+    },
+    {
+      "source": "a8",
+      "target": "a69",
+      "label": "수수료 1200%에 관한 기사로 사실상 유사한 기사",
+      "strength": 0.8,
+      "manual": true
+    },
+    {
+      "source": "a44",
+      "target": "a9",
+      "label": "1200%룰에 관한 유사관계",
+      "strength": 0.8,
+      "manual": true
     }
   ]
 }
