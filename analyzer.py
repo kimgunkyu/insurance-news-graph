@@ -209,17 +209,50 @@ def analyze_articles(articles):
 
 
 def save_analyzed_data(data):
-    """분석된 데이터를 JSON 파일로 저장"""
+    """분석된 데이터를 JSON 파일로 저장 (수동 추가분은 보존)"""
     # data 폴더 없으면 자동 생성
     os.makedirs("data", exist_ok=True)
 
     today = datetime.now().strftime("%Y_%m_%d")
     filename = f"data/analyzed_{today}.json"
 
+    # 기존 파일이 있으면 수동 추가 기사들을 보존
+    manual_articles = []
+    manual_relationships = []
+
+    if os.path.exists(filename):
+        with open(filename, 'r', encoding='utf-8') as f:
+            existing = json.load(f)
+        manual_articles = [a for a in existing.get('articles', []) if a.get('source') == '수동입력']
+        manual_ids = {a['id'] for a in manual_articles}
+        manual_relationships = [
+            r for r in existing.get('relationships', [])
+            if r['source'] in manual_ids or r['target'] in manual_ids
+        ]
+
+    # 새 크롤링 데이터의 ID와 겹치지 않도록 수동 데이터 ID 재조정
+    new_id_start = len(data['articles']) + 1
+    id_map = {}
+    for i, article in enumerate(manual_articles):
+        old_id = article['id']
+        new_id = f"a{new_id_start + i}"
+        id_map[old_id] = new_id
+        article['id'] = new_id
+
+    for rel in manual_relationships:
+        if rel['source'] in id_map:
+            rel['source'] = id_map[rel['source']]
+        if rel['target'] in id_map:
+            rel['target'] = id_map[rel['target']]
+
+    # 합치기 (크롤링 데이터 + 보존된 수동 데이터)
+    data['articles'] = data['articles'] + manual_articles
+    data['relationships'] = data['relationships'] + manual_relationships
+
     with open(filename, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-    print(f"💾 저장 완료: {filename}")
+    print(f"💾 저장 완료: {filename} (수동 추가 {len(manual_articles)}개 보존)")
     return filename
 
 
