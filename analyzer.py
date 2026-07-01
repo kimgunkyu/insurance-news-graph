@@ -22,7 +22,7 @@ GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 GITHUB_REPO = "kimgunkyu/insurance-news-graph"
 
 # ── 설정값 ────────────────────────────────────
-BATCH_SIZE = 8              # 새 기사 분석 시 배치 크기
+BATCH_SIZE = 6              # 새 기사 분석 시 배치 크기
 RELATION_WINDOW_DAYS = 30   # 관계 분석 시 참고할 기존 기사 기간
 UNIFIED_FILE = "data/all_articles.json"   # 통합 데이터 파일
 
@@ -151,7 +151,7 @@ def analyze_batch(articles, batch_num, total_batches):
   "articles": [
     {{
       "title": "기사 제목",
-      "category": "규제/법률|손해율|상품/보험료/가격|전속/GA/채널|투자/재무/IFRS|건전성/K-ICS|보험시장|기타 중 하나",
+      "category": "규제/법률|손해율|상품/보험료/가격|전속/GA/채널|투자/재무/IFRS|건전성/K-ICS|기타 중 하나",
       "date": "YYYY-MM-DD 또는 빈 문자열",
       "source": "언론사명",
       "summary": "기사 핵심 내용을 5~7문장으로 상세하게 요약. 구체적 수치, 시행 시기, 관련 기관명, 영향 범위 등을 포함.",
@@ -163,12 +163,12 @@ def analyze_batch(articles, batch_num, total_batches):
 
     try:
         response = client.messages.create(
-            model="claude-haiku-4-5",
-            max_tokens=3000,
+            model="claude-sonnet-5",
+            max_tokens=6000,
             messages=[{"role": "user", "content": prompt}]
         )
 
-        raw = response.content[0].text
+        raw = next((block.text for block in response.content if block.type == "text"), "")
 
         parsed = None
         for attempt in [
@@ -183,7 +183,8 @@ def analyze_batch(articles, batch_num, total_batches):
                 pass
 
         if not parsed:
-            print(f"  ❌ 배치 {batch_num} 파싱 실패")
+            print(f"  ❌ 배치 {batch_num} 파싱 실패, 응답 길이: {len(raw)}자")
+            print(f"  🔍 원본 응답 마지막 300자: {raw[-300:]}")
             return []
 
         return parsed.get('articles', [])
@@ -246,12 +247,12 @@ def analyze_relationships(new_articles, recent_existing_articles):
 
     try:
         response = client.messages.create(
-            model="claude-haiku-4-5",
-            max_tokens=2500,
+            model="claude-sonnet-5",
+            max_tokens=8000,
             messages=[{"role": "user", "content": prompt}]
         )
 
-        raw = response.content[0].text
+        raw = next((block.text for block in response.content if block.type == "text"), "")
 
         parsed = None
         for attempt in [
@@ -267,6 +268,8 @@ def analyze_relationships(new_articles, recent_existing_articles):
 
         if not parsed:
             print("  ❌ 관계 분석 파싱 실패")
+            print(f"  🔍 원본 응답 (앞 300자): {raw[:300]}")
+            print(f"  🔍 원본 응답 길이: {len(raw)}자")
             return []
 
         return parsed.get('relationships', [])

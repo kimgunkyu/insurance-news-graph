@@ -196,7 +196,7 @@ async def add_news(
 다음 JSON 형식으로만 응답하세요 (마크다운, 설명 없이 순수 JSON만):
 {{
   "title": "소식 제목",
-  "category": "규제/법률|손해율|상품/보험료/가격|전속/GA/채널|투자/재무/IFRS|건전성/K-ICS|보험시장|기타 중 하나",
+  "category": "규제/법률|손해율|상품/보험료/가격|전속/GA/채널|투자/재무/IFRS|건전성/K-ICS|기타 중 하나",
   "date": "YYYY-MM-DD (알 수 없으면 오늘 날짜 {datetime.now().strftime('%Y-%m-%d')})",
   "source": "출처 (알 수 없으면 '수동입력')",
   "summary": "5~7문장으로 상세 요약. 구체적 수치, 시행시기, 관련기관 포함.",
@@ -211,12 +211,12 @@ async def add_news(
 
     try:
         response = client.messages.create(
-            model="claude-haiku-4-5",
+            model="claude-sonnet-5",
             max_tokens=1500,
             messages=[{"role": "user", "content": content_blocks}]
         )
 
-        raw = response.content[0].text
+        raw = next((block.text for block in response.content if block.type == "text"), "")
 
         parsed = None
         for attempt in [
