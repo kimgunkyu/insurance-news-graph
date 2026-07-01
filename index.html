@@ -193,6 +193,10 @@
     <div class="tt-title" id="tt-title"></div>
     <div class="tt-meta" id="tt-meta"></div>
   </div>
+    <div id="relation-mode-bar" style="position:absolute; bottom:50px; left:50%; transform:translateX(-50%); background:#fff; border:1px solid var(--border); border-radius:10px; padding:10px 14px; font-size:12px; box-shadow:0 4px 16px rgba(0,0,0,0.12); display:none; align-items:center; gap:10px; z-index:50;"></div>
+    <span id="relation-mode-text">Ctrl+클릭으로 연결할 기사 2개를 선택하세요</span>
+    <button id="relation-mode-cancel" style="padding:4px 10px; font-size:11px; border-radius:5px; border:1px solid var(--border); background:transparent; color:var(--text-muted); cursor:pointer;">취소</button>
+  </div>
   <div id="status">데이터 불러오는 중...</div>
   <div id="empty-state">
     <div class="icon">🕸️</div>
@@ -460,7 +464,31 @@ function initGraph() {
   const link = g.append('g').selectAll('line').data(visLinks).join('line')
     .attr('stroke', '#d0d7de')
     .attr('stroke-width', d => 1 + (d.strength||0.5) * 2)
-    .attr('opacity', 0.7);
+    .attr('opacity', 0.7)
+    .attr('cursor', 'pointer')
+    .on('click', async (e, d) => {
+      e.stopPropagation();
+      const s = d.source?.id || d.source;
+      const t = d.target?.id || d.target;
+      const sourceNode = state.nodes.find(n => n.id === s);
+      const targetNode = state.nodes.find(n => n.id === t);
+      const confirmMsg = `"${sourceNode?.title}" ↔ "${targetNode?.title}"\n관계(${d.label})를 삭제할까요?`;
+      if (!confirm(confirmMsg)) return;
+
+      try {
+        const res = await fetch(`${SERVER_URL}/api/delete-relationship?source=${s}&target=${t}`, { method: 'DELETE' });
+        const result = await res.json();
+        if (result.status === 'success') {
+          setTimeout(() => loadData(), 800);
+        } else {
+          alert('삭제 실패: ' + result.message);
+        }
+      } catch (err) {
+        alert('서버 연결 실패: ' + err.message);
+      }
+    })
+    .on('mouseover', function() { d3.select(this).attr('stroke', '#cf222e').attr('opacity', 1); })
+    .on('mouseout', function() { d3.select(this).attr('stroke', '#d0d7de').attr('opacity', 0.7); });
 
   const linkLabel = g.append('g').selectAll('text').data(visLinks).join('text')
     .attr('font-size', 9).attr('fill', '#8c959f').attr('text-anchor', 'middle')
@@ -472,7 +500,14 @@ function initGraph() {
       .on('start', (e,d) => { if(!e.active) sim.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; })
       .on('drag', (e,d) => { d.fx=e.x; d.fy=e.y; })
       .on('end', (e,d) => { if(!e.active) sim.alphaTarget(0); d.fx=null; d.fy=null; }))
-    .on('click', (e,d) => { e.stopPropagation(); selectNode(d.id); })
+    .on('click', (e,d) => {
+      e.stopPropagation();
+      if (e.ctrlKey || e.metaKey) {
+        toggleNodeForRelation(d.id);
+      } else {
+        selectNode(d.id);
+      }
+    })
     .on('mouseover', (e,d) => {
       const tt = document.getElementById('tooltip');
       document.getElementById('tt-title').textContent = d.title;
@@ -630,6 +665,83 @@ window.addEventListener('resize', () => { if(state.nodes.length) initGraph(); })
 
 document.getElementById('sidebar-toggle').addEventListener('click', () => {
   document.getElementById('sidebar').classList.toggle('open');
+});
+// ── 관계 수동 추가 모드 ───────────────────────
+let relationModeNodes = [];   // Ctrl+클릭으로 선택된 노드 id들 (최대 2개)
+
+function toggleNodeForRelation(nodeId) {
+  const idx = relationModeNodes.indexOf(nodeId);
+  if (idx > -1) {
+    relationModeNodes.splice(idx, 1);
+  } else {
+    if (relationModeNodes.length >= 2) {
+      relationModeNodes.shift();   // 2개 넘으면 가장 오래된 것 제거
+    }
+    relationModeNodes.push(nodeId);
+  }
+
+  // 선택된 노드 하이라이트
+  if (state.g) {
+    state.g.selectAll('circle')
+      .attr('stroke-width', d => relationModeNodes.includes(d.id) ? 4 : 1.5)
+      .attr('stroke', d => relationModeNodes.includes(d.id) ? '#cf222e' : (COLORS[d.category]||COLORS['기타']));
+  }
+
+  const bar = document.getElementById('relation-mode-bar');
+  const text = document.getElementById('relation-mode-text');
+
+  if (relationModeNodes.length === 0) {
+    bar.style.display = 'none';
+  } else if (relationModeNodes.length === 1) {
+    bar.style.display = 'flex';
+    const n = state.nodes.find(n => n.id === relationModeNodes[0]);
+    text.textContent = `"${n?.title?.slice(0,20)}..." 선택됨. 연결할 기사를 하나 더 Ctrl+클릭하세요`;
+  } else {
+    bar.style.display = 'flex';
+    const n1 = state.nodes.find(n => n.id === relationModeNodes[0]);
+    const n2 = state.nodes.find(n => n.id === relationModeNodes[1]);
+    text.innerHTML = `"${n1?.title?.slice(0,15)}..." ↔ "${n2?.title?.slice(0,15)}..." `;
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.textContent = '관계 만들기';
+    confirmBtn.style.cssText = 'padding:4px 10px; font-size:11px; border-radius:5px; border:none; background:var(--accent); color:#fff; cursor:pointer; font-weight:600;';
+    confirmBtn.onclick = () => createRelation(relationModeNodes[0], relationModeNodes[1]);
+    text.appendChild(confirmBtn);
+  }
+}
+
+async function createRelation(id1, id2) {
+  const label = prompt('두 기사의 관계를 짧게 설명해주세요 (예: 원인결과, 후속보도, 정책연계 등)', '연관');
+  if (label === null) return;   // 취소
+
+  try {
+    const formData = new FormData();
+    formData.append('source', id1);
+    formData.append('target', id2);
+    formData.append('label', label || '연관');
+
+    const res = await fetch(`${SERVER_URL}/api/add-relationship`, {
+      method: 'POST',
+      body: formData,
+    });
+    const result = await res.json();
+
+    if (result.status === 'success') {
+      relationModeNodes = [];
+      document.getElementById('relation-mode-bar').style.display = 'none';
+      setTimeout(() => loadData(), 800);
+    } else {
+      alert('관계 추가 실패: ' + result.message);
+    }
+  } catch (e) {
+    alert('서버 연결 실패: ' + e.message);
+  }
+}
+
+document.getElementById('relation-mode-cancel').addEventListener('click', () => {
+  relationModeNodes = [];
+  document.getElementById('relation-mode-bar').style.display = 'none';
+  resetHighlight();
 });
 
 // ── 소식 추가 기능 ────────────────────────────

@@ -313,6 +313,135 @@ def delete_news(article_id: str):
         return {"status": "error", "message": "GitHub 저장 실패"}
 
 
+@app.delete("/api/delete-relationship")
+def delete_relationship(source: str, target: str):
+    """
+    특정 관계선(엣지) 하나만 삭제하는 API
+    삭제된 관계는 rejected_relationships.json에 기록해서
+    나중에 Claude가 비슷한 관계를 다시 만들지 않도록 참고자료로 씀
+    """
+    existing_data, sha = get_github_file(UNIFIED_PATH)
+
+    if not existing_data:
+        return {"status": "error", "message": "파일을 찾을 수 없습니다."}
+
+    target_rel = None
+    for r in existing_data['relationships']:
+        if (r['source'] == source and r['target'] == target) or \
+           (r['source'] == target and r['target'] == source):
+            target_rel = r
+            break
+
+    if not target_rel:
+        return {"status": "error", "message": "해당 관계를 찾을 수 없습니다."}
+
+    source_article = next((a for a in existing_data['articles'] if a['id'] == target_rel['source']), None)
+    target_article = next((a for a in existing_data['articles'] if a['id'] == target_rel['target']), None)
+
+    existing_data['relationships'] = [
+        r for r in existing_data['relationships'] if r != target_rel
+    ]
+
+    success1 = update_github_file(
+        UNIFIED_PATH, existing_data, sha,
+        message=f"관계 삭제: {source}-{target} ({datetime.now().strftime('%Y-%m-%d %H:%M')})"
+    )
+
+    # 거부된 관계 기록
+    rejected_path = "data/rejected_relationships.json"
+    rejected_data, rejected_sha = get_github_file(rejected_path)
+    if not rejected_data:
+        rejected_data = {"rejected": []}
+
+    rejected_data['rejected'].append({
+        "source_title": source_article['title'] if source_article else target_rel['source'],
+        "target_title": target_article['title'] if target_article else target_rel['target'],
+        "label": target_rel.get('label', ''),
+        "deleted_at": datetime.now().strftime("%Y-%m-%d")
+    })
+    rejected_data['rejected'] = rejected_data['rejected'][-50:]
+
+    update_github_file(
+        rejected_path, rejected_data, rejected_sha,
+        message=f"거부된 관계 기록 업데이트: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    )
+
+    if success1:
+        return {"status": "success", "message": "관계 삭제 완료"}
+    else:
+        return {"status": "error", "message": "GitHub 저장 실패"}
+
+
+@app.post("/api/add-relationship")
+async def add_relationship(
+    source: str = Form(...),
+    target: str = Form(...),
+    label: str = Form("연관"),
+):
+    """
+    사용자가 그래프에서 직접 두 기사를 선택해 관계를 추가하는 API
+    승인된 관계는 approved_relationships.json에 기록해서
+    나중에 Claude가 비슷한 관계를 잘 찾아내도록 참고자료로 씀
+    """
+    existing_data, sha = get_github_file(UNIFIED_PATH)
+
+    if not existing_data:
+        return {"status": "error", "message": "파일을 찾을 수 없습니다."}
+
+    source_article = next((a for a in existing_data['articles'] if a['id'] == source), None)
+    target_article = next((a for a in existing_data['articles'] if a['id'] == target), None)
+
+    if not source_article or not target_article:
+        return {"status": "error", "message": "기사를 찾을 수 없습니다."}
+
+    already_exists = any(
+        (r['source'] == source and r['target'] == target) or
+        (r['source'] == target and r['target'] == source)
+        for r in existing_data['relationships']
+    )
+    if already_exists:
+        return {"status": "error", "message": "이미 존재하는 관계입니다."}
+
+    new_relationship = {
+        "source": source,
+        "target": target,
+        "label": label,
+        "strength": 0.8,
+        "manual": True
+    }
+
+    existing_data['relationships'].append(new_relationship)
+
+    success1 = update_github_file(
+        UNIFIED_PATH, existing_data, sha,
+        message=f"관계 수동 추가: {source}-{target} ({datetime.now().strftime('%Y-%m-%d %H:%M')})"
+    )
+
+    # 승인된 관계 기록
+    approved_path = "data/approved_relationships.json"
+    approved_data, approved_sha = get_github_file(approved_path)
+    if not approved_data:
+        approved_data = {"approved": []}
+
+    approved_data['approved'].append({
+        "source_title": source_article['title'],
+        "target_title": target_article['title'],
+        "label": label,
+        "added_at": datetime.now().strftime("%Y-%m-%d")
+    })
+    approved_data['approved'] = approved_data['approved'][-50:]
+
+    update_github_file(
+        approved_path, approved_data, approved_sha,
+        message=f"승인된 관계 기록 업데이트: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    )
+
+    if success1:
+        return {"status": "success", "message": "관계 추가 완료"}
+    else:
+        return {"status": "error", "message": "GitHub 저장 실패"}
+
+
 # ── HTML 파일 서빙 ────────────────────────────
 @app.get("/")
 def serve_index():
