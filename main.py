@@ -191,7 +191,8 @@ async def add_news(
   "category": "규제/법률|손해율|상품/보험료/가격|전속/GA/채널|투자/재무/IFRS|건전성/K-ICS|기타 중 하나",
   "date": "YYYY-MM-DD (알 수 없으면 오늘 날짜 {datetime.now().strftime('%Y-%m-%d')})",
   "source": "출처 (알 수 없으면 '수동입력')",
-  "summary": "5~7문장으로 상세 요약. 구체적 수치, 시행시기, 관련기관 포함.",
+  "brief_summary": "핵심만 3줄 이내로 아주 간결하게 요약. 가장 중요한 사실 위주.",
+  "summary": "10줄(문장) 이내로 상세 요약. 구체적 수치, 시행시기, 관련기관 포함.",
   "keywords": ["키워드1", "키워드2", "키워드3"],
   "related_article_ids": ["기존 기사 중 관련있는 기사의 id, 최대 4개. 카테고리가 달라도 실제 인과관계/연관성이 있으면 적극적으로 포함"],
   "relationship_labels": ["각 관련기사와의 관계를 5자 이내로, related_article_ids와 같은 순서로"]
@@ -233,6 +234,7 @@ async def add_news(
             "category": parsed.get("category", "기타"),
             "date": parsed.get("date", datetime.now().strftime("%Y-%m-%d")),
             "source": parsed.get("source", "수동입력"),
+            "brief_summary": parsed.get("brief_summary", ""),
             "summary": parsed.get("summary", ""),
             "keywords": parsed.get("keywords", []),
         }

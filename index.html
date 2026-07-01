@@ -136,6 +136,7 @@
   #detail-meta { font-size: 11px; color: var(--text-muted); margin-bottom: 14px; }
   .section-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 7px; margin-top: 14px; }
   #detail-summary { font-size: 12px; line-height: 1.7; background: var(--surface); border-radius: 7px; padding: 11px 12px; border-left: 2px solid var(--accent); }
+  #detail-brief-summary { font-size: 12.5px; line-height: 1.6; font-weight: 600; background: rgba(45,107,228,0.06); border-radius: 7px; padding: 10px 12px; border-left: 2px solid #2da44e; }
   .rel-item { padding: 8px 10px; background: var(--surface); border-radius: 6px; margin-bottom: 5px; cursor: pointer; border: 1px solid transparent; transition: border-color 0.15s; }
   .rel-item:hover { border-color: var(--accent); }
   .rel-label { font-size: 10px; color: var(--accent); font-weight: 600; margin-bottom: 2px; }
@@ -226,6 +227,8 @@
       <span class="detail-tag" id="detail-tag"></span>
       <div id="detail-title"></div>
       <div id="detail-meta"></div>
+      <div class="section-label">핵심 요약</div>
+      <div id="detail-brief-summary"></div>
       <div class="section-label">AI 요약</div>
       <div id="detail-summary"></div>
       <div class="section-label">연관 기사</div>
@@ -401,6 +404,7 @@ function openDetail(node) {
   document.getElementById('detail-tag').style.cssText = `background:${c}18;color:${c}`;
   document.getElementById('detail-title').textContent = node.title;
   document.getElementById('detail-meta').textContent = `${node.source} · ${node.date}`;
+  document.getElementById('detail-brief-summary').textContent = node.brief_summary || '(요약 없음)';
   document.getElementById('detail-summary').textContent = node.summary;
 
   const linkEl = document.getElementById('detail-link');
@@ -560,16 +564,18 @@ function initGraph() {
     })
     .on('mouseover', (e,d) => {
       const tt = document.getElementById('tooltip');
+      const mainRect = document.getElementById('main').getBoundingClientRect();
       document.getElementById('tt-title').textContent = d.title;
       document.getElementById('tt-meta').textContent = `${d.source} · ${d.date}`;
       tt.style.display = 'block';
-      tt.style.left = (e.pageX+12)+'px';
-      tt.style.top = (e.pageY-10)+'px';
+      tt.style.left = (e.clientX - mainRect.left + 12)+'px';
+      tt.style.top = (e.clientY - mainRect.top - 10)+'px';
     })
     .on('mousemove', e => {
       const tt = document.getElementById('tooltip');
-      tt.style.left = (e.pageX+12)+'px';
-      tt.style.top = (e.pageY-10)+'px';
+      const mainRect = document.getElementById('main').getBoundingClientRect();
+      tt.style.left = (e.clientX - mainRect.left + 12)+'px';
+      tt.style.top = (e.clientY - mainRect.top - 10)+'px';
     })
     .on('mouseout', () => { document.getElementById('tooltip').style.display = 'none'; });
 
