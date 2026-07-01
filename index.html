@@ -45,6 +45,7 @@
 
   /* 소식 추가 모달 */
   #add-news-modal { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.35); z-index:200; align-items:center; justify-content:center; }
+  #add-news-modal.show { display:flex; }
   #add-news-modal .modal-box { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 20px; width: 420px; max-width: 90%; box-shadow: 0 12px 32px rgba(0,0,0,0.15); }
   .input-tab { flex:1; padding:6px; font-size:12px; border-radius:6px; cursor:pointer; }
 
@@ -774,11 +775,12 @@ document.getElementById('relation-mode-cancel').addEventListener('click', () => 
 let selectedInputType = 'text';
 
 document.getElementById('add-news-btn').addEventListener('click', () => {
-  document.getElementById('add-news-modal').style.display = 'flex';
+  document.getElementById('add-news-modal').classList.add('show');
 });
 
+
 document.getElementById('cancel-add-news').addEventListener('click', () => {
-  document.getElementById('add-news-modal').style.display = 'none';
+  document.getElementById('add-news-modal').classList.remove('show');
   document.getElementById('news-text-input').value = '';
   document.getElementById('news-image-input').value = '';
   document.getElementById('image-preview').innerHTML = '';
@@ -858,7 +860,7 @@ document.getElementById('submit-add-news').addEventListener('click', async () =>
       statusEl.style.color = '#2da44e';
 
       setTimeout(() => {
-        document.getElementById('add-news-modal').style.display = 'none';
+        document.getElementById('add-news-modal').classList.remove('show');
         document.getElementById('news-text-input').value = '';
         document.getElementById('news-image-input').value = '';
         document.getElementById('image-preview').innerHTML = '';
