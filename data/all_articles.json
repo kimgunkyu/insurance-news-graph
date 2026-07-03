@@ -2074,12 +2074,6 @@
     },
     {
       "source": "a98",
-      "target": "a99",
-      "label": "흥국화재동시이슈",
-      "strength": 0.3
-    },
-    {
-      "source": "a98",
       "target": "a75",
       "label": "암보장상품경쟁",
       "strength": 0.7
