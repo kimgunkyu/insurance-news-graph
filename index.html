@@ -193,7 +193,7 @@
           <div class="spinner"></div>
           <span>🔄 새로고침</span>
         </button>
-        <button id="fetch-btn" title="지금 바로 새 기사를 크롤링하고 분석합니다 (최대 1분 소요)">
+        <button id="fetch-btn" title="지금 바로 새 기사를 크롤링하고 분석합니다">
           <div class="spinner-white"></div>
           <span>📡 새 기사 수집</span>
         </button>
@@ -335,7 +335,7 @@ async function fetchNow() {
   if (btn.classList.contains('loading')) return;   // 중복 클릭 방지
 
   btn.classList.add('loading');
-  btn.querySelector('span').textContent = '수집 중... (최대 1분)';
+  btn.querySelector('span').textContent = '수집 중...';
   document.getElementById('status').textContent = '새 기사 크롤링 + 분석 중...';
 
   try {
