@@ -46,12 +46,18 @@
   #search-input::placeholder { color: var(--text-muted); }
   #search-btn { background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
 
-  /* 새로고침 버튼 */
-  #refresh-btn { margin: 8px 12px; background: #fff; border: 1px solid var(--accent); color: var(--accent); border-radius: 6px; padding: 8px 12px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; }
-  #refresh-btn:hover { background: rgba(45,107,228,0.08); }
+  /* 새로고침 / 새 기사 수집 버튼 영역 */
+  #action-btns { margin: 8px 12px 0; display: flex; gap: 6px; }
+  #refresh-btn { flex: 1; background: #fff; border: 1px solid var(--border); color: var(--text-muted); border-radius: 6px; padding: 8px 12px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
+  #refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
   #refresh-btn.loading { opacity: 0.6; cursor: not-allowed; }
   .spinner { width: 11px; height: 11px; border: 2px solid transparent; border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; display: none; }
   #refresh-btn.loading .spinner { display: block; }
+  #fetch-btn { flex: 1; background: var(--accent); border: 1px solid var(--accent); color: #fff; border-radius: 6px; padding: 8px 12px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  #fetch-btn:hover { background: #2559c9; }
+  #fetch-btn.loading { opacity: 0.65; cursor: not-allowed; }
+  .spinner-white { width: 11px; height: 11px; border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; display: none; }
+  #fetch-btn.loading .spinner-white { display: block; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
   /* 소식 추가 버튼 */
@@ -182,10 +188,16 @@
         <input type="text" id="search-input" placeholder="키워드 검색 (예: 수수료, 실손보험)" />
         <button id="search-btn">검색</button>
       </div>
-      <button id="refresh-btn">
-        <div class="spinner"></div>
-        <span>🔄 최신 데이터 불러오기</span>
-      </button>
+      <div id="action-btns">
+        <button id="refresh-btn" title="GitHub에 저장된 최신 데이터를 다시 불러옵니다">
+          <div class="spinner"></div>
+          <span>🔄 새로고침</span>
+        </button>
+        <button id="fetch-btn" title="지금 바로 새 기사를 크롤링하고 분석합니다 (최대 1분 소요)">
+          <div class="spinner-white"></div>
+          <span>📡 새 기사 수집</span>
+        </button>
+      </div>
       <button id="add-news-btn">➕ 소식 추가하기</button>
 
       <div id="article-list"></div>
@@ -313,7 +325,36 @@ async function loadData() {
     console.error(e);
   } finally {
     btn.classList.remove('loading');
-    btn.querySelector('span').textContent = '🔄 최신 데이터 불러오기';
+    btn.querySelector('span').textContent = '🔄 새로고침';
+  }
+}
+
+// ── 지금 바로 크롤링+분석 실행 ────────────────
+async function fetchNow() {
+  const btn = document.getElementById('fetch-btn');
+  if (btn.classList.contains('loading')) return;   // 중복 클릭 방지
+
+  btn.classList.add('loading');
+  btn.querySelector('span').textContent = '수집 중... (최대 1분)';
+  document.getElementById('status').textContent = '새 기사 크롤링 + 분석 중...';
+
+  try {
+    const res = await fetch(`${SERVER_URL}/api/fetch`, { method: 'POST' });
+    const result = await res.json().catch(() => ({}));
+
+    if (res.ok) {
+      document.getElementById('status').textContent = '✅ 수집 완료! 데이터 갱신 중...';
+      await loadData();
+    } else {
+      alert('수집 실패: ' + (result.message || res.status));
+      document.getElementById('status').textContent = '수집 실패';
+    }
+  } catch (e) {
+    alert('서버 연결 실패: ' + e.message);
+    document.getElementById('status').textContent = '서버 연결 실패';
+  } finally {
+    btn.classList.remove('loading');
+    btn.querySelector('span').textContent = '📡 새 기사 수집';
   }
 }
 
@@ -394,7 +435,33 @@ function selectNode(id) {
   if (!node) return;
   renderSidebar();
   highlightGraph(id);
+  centerOnNode(id);
   openDetail(node);
+}
+
+// ── 선택한 노드를 화면 정중앙으로 부드럽게 이동 ──
+function centerOnNode(id) {
+  if (!state.g || !state.svg || !state.zoom) return;
+  const node = state.g.selectAll('circle').data().find(d => d.id === id);
+  if (!node || node.x == null || node.y == null) return;
+
+  const container = document.getElementById('main');
+  const W = container.clientWidth, H = container.clientHeight;
+
+  // 상세 패널(오른쪽 320px)이 열리면 그만큼 가려지니, 보이는 영역 기준으로 중앙 계산
+  const isMobile = window.innerWidth <= 768;
+  const panelWidth = isMobile ? 0 : 320;
+  const visibleCenterX = Math.max((W - panelWidth) / 2, 40);
+
+  // 현재 줌 배율은 유지하되, 최소 1배는 되도록 (너무 축소된 상태면 살짝 확대)
+  const currentTransform = d3.zoomTransform(state.svg.node());
+  const k = Math.max(currentTransform.k, 1);
+
+  const target = d3.zoomIdentity
+    .translate(visibleCenterX - node.x * k, H / 2 - node.y * k)
+    .scale(k);
+
+  state.svg.transition().duration(500).call(state.zoom.transform, target);
 }
 
 // ── 상세 패널 열기 ───────────────────────────
@@ -580,7 +647,8 @@ function initGraph() {
     .on('mouseout', () => { document.getElementById('tooltip').style.display = 'none'; });
 
   nodeG.append('circle')
-    .attr('r', d => rScale(degree[d.id]||0))
+    .attr('class', 'node-circle')
+    .attr('r', d => { d.baseRadius = rScale(degree[d.id]||0); d.degree = degree[d.id]||0; return d.baseRadius; })
     .attr('fill', d => COLORS[d.category]||COLORS['기타'])
     .attr('fill-opacity', 0.88)
     .attr('stroke', d => relationModeNodes.includes(d.id) ? '#cf222e' : (COLORS[d.category]||COLORS['기타']))
@@ -644,7 +712,10 @@ function highlightGraph(id) {
 
   state.g.selectAll('circle')
     .attr('opacity', d => conn.has(d.id) ? 1 : 0.12)
-    .attr('stroke-width', d => d.id===id ? 3.5 : (conn.has(d.id) ? 2 : 1.5));
+    .attr('r', d => d.id===id ? (d.baseRadius||8) * 1.35 : (d.baseRadius||8))
+    .attr('stroke', d => d.id===id ? '#cf222e' : (COLORS[d.category]||COLORS['기타']))
+    .attr('stroke-width', d => d.id===id ? 4 : (conn.has(d.id) ? 2 : 1.5))
+    .attr('filter', d => d.id===id ? 'url(#glow)' : ((d.degree||0) >= 3 ? 'url(#glow)' : null));
 
   state.g.selectAll('line').attr('opacity', d => {
     const s=d.source?.id||d.source, t=d.target?.id||d.target;
@@ -661,8 +732,10 @@ function resetHighlight() {
   if (!state.g) return;
   state.g.selectAll('circle')
     .attr('opacity', 0.88)
+    .attr('r', d => d.baseRadius || 8)
     .attr('stroke-width', 1.5)
-    .attr('stroke', d => COLORS[d.category]||COLORS['기타']);
+    .attr('stroke', d => COLORS[d.category]||COLORS['기타'])
+    .attr('filter', d => (d.degree||0) >= 3 ? 'url(#glow)' : null);
   state.g.selectAll('line').attr('opacity', 0.7);
 }
 
@@ -730,6 +803,7 @@ function filterByCategory(cats) {
 
 // ── 이벤트 리스너 ────────────────────────────
 document.getElementById('refresh-btn').addEventListener('click', loadData);
+document.getElementById('fetch-btn').addEventListener('click', fetchNow);
 document.getElementById('period-select').addEventListener('change', applyPeriodFilter);
 
 document.getElementById('search-btn').addEventListener('click', () => {
