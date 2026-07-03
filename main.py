@@ -452,6 +452,102 @@ async def add_relationship(
     else:
         return {"status": "error", "message": "GitHub 저장 실패"}
 
+@app.get("/api/test-insweek")
+def test_insweek():
+    """
+    [테스트용 임시 엔드포인트 - 확인 후 삭제 예정]
+    보험신보(insweek.co.kr) 크롤링 가능 여부 테스트
+    1) 목록 페이지에서 후보 기사 추출 (제목/링크/카테고리 태그)
+    2) 그중 앞쪽 3개만 상세페이지 메타태그까지 확인
+    """
+    import re
+    from bs4 import BeautifulSoup
+
+    HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+    LIST_URL = "https://www.insweek.co.kr/news/articleList.html?view_type=sm"
+    TARGET_CATEGORIES = {"손해보험", "신상품", "상품분석"}
+
+    result = {"list_status": None, "candidates": [], "detail_samples": []}
+
+    # 1. 목록 페이지 요청
+    try:
+        res = requests.get(LIST_URL, headers=HEADERS, timeout=15)
+        result["list_status"] = res.status_code
+        soup = BeautifulSoup(res.text, 'html.parser')
+    except Exception as e:
+        result["list_error"] = str(e)
+        return result
+
+    articles = []
+    seen_idx = set()
+
+    for tag_name in ['h2', 'h3', 'h4']:
+        for h in soup.find_all(tag_name):
+            a = h.find('a', href=True)
+            if not a or 'articleView.html' not in a['href']:
+                continue
+
+            idx_match = re.search(r'idxno=(\d+)', a['href'])
+            if not idx_match:
+                continue
+            idxno = idx_match.group(1)
+
+            if idxno in seen_idx:
+                continue
+            seen_idx.add(idxno)
+
+            title = a.get_text(strip=True)
+            if not title:
+                continue
+
+            container = h.find_parent('li') or h.parent
+            info_text = container.get_text(separator='|', strip=True) if container else ''
+
+            found_category = None
+            for token in info_text.split('|'):
+                token = token.strip()
+                if token in TARGET_CATEGORIES:
+                    found_category = token
+                    break
+
+            link = a['href'] if a['href'].startswith('http') else "https://www.insweek.co.kr" + a['href']
+
+            articles.append({
+                'idxno': idxno,
+                'title': title,
+                'link': link,
+                'category_tag': found_category,
+            })
+
+    result["total_found_on_list_page"] = len(articles)
+    result["candidates"] = [
+        {"title": a['title'], "category_tag": a['category_tag'], "link": a['link']}
+        for a in articles
+    ]
+
+    # 2. 카테고리 매칭된 것 중 최대 3개만 상세페이지 확인
+    matched = [a for a in articles if a['category_tag'] in TARGET_CATEGORIES][:3]
+
+    for cand in matched:
+        try:
+            detail_res = requests.get(cand['link'], headers=HEADERS, timeout=15)
+            detail_soup = BeautifulSoup(detail_res.text, 'html.parser')
+
+            def get_meta(prop_name):
+                tag = detail_soup.find('meta', property=prop_name)
+                return tag['content'] if tag and tag.has_attr('content') else None
+
+            result["detail_samples"].append({
+                "title": cand['title'],
+                "section": get_meta('article:section'),
+                "section1": get_meta('article:section1'),
+                "published_time": get_meta('article:published_time'),
+                "description": get_meta('og:description'),
+            })
+        except Exception as e:
+            result["detail_samples"].append({"title": cand['title'], "error": str(e)})
+
+    return result
 
 @app.get("/api/test-direct-access")
 def test_direct_access():
