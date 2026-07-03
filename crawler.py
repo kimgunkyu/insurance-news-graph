@@ -41,6 +41,14 @@ MEDIA_SOURCES = [
             "금융정책", "종합", "생명보험", "손해보험", "GA", "기관", "신상품"
         },
     },
+    {
+        "name": "보험신보",
+        "base_url": "https://www.insweek.co.kr",
+        "list_url": "https://www.insweek.co.kr/news/articleList.html?view_type=sm",
+        "target_categories": {
+            "손해보험", "신상품", "상품분석"
+        },
+    },
 ]
 
 
