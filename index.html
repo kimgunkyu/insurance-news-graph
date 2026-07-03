@@ -573,12 +573,12 @@ function initGraph() {
   const rScale = d3.scaleSqrt().domain([0, d3.max(Object.values(degree))||1]).range([5, 16]);
 
   const sim = d3.forceSimulation(visNodes)
-    .force('link', d3.forceLink(visLinks).id(d => d.id).distance(85).strength(0.6))
-    .force('charge', d3.forceManyBody().strength(-110))
+    .force('link', d3.forceLink(visLinks).id(d => d.id).distance(80).strength(0.3))
+    .force('charge', d3.forceManyBody().strength(-170))
     .force('center', d3.forceCenter(W/2, H/2))
-    .force('x', d3.forceX(W/2).strength(0.04))
-    .force('y', d3.forceY(H/2).strength(0.04))
-    .force('collision', d3.forceCollide().radius(d => rScale(degree[d.id]||0) + 4));
+    .force('x', d3.forceX(W/2).strength(0.02))
+    .force('y', d3.forceY(H/2).strength(0.02))
+    .force('collision', d3.forceCollide().radius(d => rScale(degree[d.id]||0) + 6));
 
   const link = g.append('g').selectAll('line').data(visLinks).join('line')
     .attr('stroke', '#454545')
