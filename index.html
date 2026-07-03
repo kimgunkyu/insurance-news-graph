@@ -570,15 +570,15 @@ function initGraph() {
     degree[s] = (degree[s]||0) + 1;
     degree[t] = (degree[t]||0) + 1;
   });
-  const rScale = d3.scaleSqrt().domain([0, d3.max(Object.values(degree))||1]).range([5, 16]);
+  const rScale = d3.scaleSqrt().domain([0, d3.max(Object.values(degree))||1]).range([4, 13]);
 
   const sim = d3.forceSimulation(visNodes)
     .force('link', d3.forceLink(visLinks).id(d => d.id).distance(55).strength(0.45))
-    .force('charge', d3.forceManyBody().strength(-90))
+    .force('charge', d3.forceManyBody().strength(d => -70 - (degree[d.id]||0) * 14))
     .force('center', d3.forceCenter(W/2, H/2))
     .force('x', d3.forceX(W/2).strength(0.03))
     .force('y', d3.forceY(H/2).strength(0.03))
-    .force('collision', d3.forceCollide().radius(d => rScale(degree[d.id]||0) + 5));
+    .force('collision', d3.forceCollide().radius(d => rScale(degree[d.id]||0) + 5 + (degree[d.id]||0) * 0.4));
 
   const link = g.append('g').selectAll('line').data(visLinks).join('line')
     .attr('stroke', '#454545')
