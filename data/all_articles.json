@@ -4021,12 +4021,6 @@
       "strength": 0.4
     },
     {
-      "source": "a134",
-      "target": "a131",
-      "label": "7월 손보업계 변화",
-      "strength": 0.3
-    },
-    {
       "source": "a135",
       "target": "a63",
       "label": "손보 상품개편",
